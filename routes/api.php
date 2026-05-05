@@ -26,8 +26,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/ads/{id}', [App\Http\Controllers\Api\AdController::class, 'destroy']);
     
     // === مسارات القوائم المنسدلة (Lookups) ===
+    // جلب البيانات (GET)
     Route::get('/lookups/screen-types', [App\Http\Controllers\Api\LookupController::class, 'getScreenTypes']);
-    Route::get('/lookups/streets', [App\Http\Controllers\Api\LookupController::class, 'getStreets']);
+    Route::get('/lookups/governorates', [App\Http\Controllers\Api\LookupController::class, 'getGovernorates']);
+    Route::get('/lookups/governorates/{gov_id}/regions', [App\Http\Controllers\Api\LookupController::class, 'getRegions']);
+    Route::get('/lookups/regions/{region_id}/streets', [App\Http\Controllers\Api\LookupController::class, 'getStreets']);
+    Route::get('/lookups/streets', [App\Http\Controllers\Api\LookupController::class, 'getAllStreets']); // جلب كل الشوارع مباشرة
     Route::get('/lookups/categories', [App\Http\Controllers\Api\LookupController::class, 'getCategories']);
+    
+    // إضافة البيانات من قبل المدير العام (POST)
+    Route::post('/lookups/screen-types', [App\Http\Controllers\Api\LookupController::class, 'storeScreenType']);
+    Route::post('/lookups/governorates', [App\Http\Controllers\Api\LookupController::class, 'storeGovernorate']);
+    Route::post('/lookups/regions', [App\Http\Controllers\Api\LookupController::class, 'storeRegion']);
+    Route::post('/lookups/streets', [App\Http\Controllers\Api\LookupController::class, 'storeStreet']);
     
 });
