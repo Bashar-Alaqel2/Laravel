@@ -100,7 +100,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'تم تسجيل الدخول بنجاح.',
             'user'    => $user,
-            'role'    => $user->role->role_name ?? 'بدون صلاحية',
+            'role'    => $user->role?->role_name ?? 'بدون صلاحية',
             'token'   => $token 
         ], 200);
     }
