@@ -107,4 +107,56 @@ class LookupController extends Controller
         $street = Street::create($request->only(['name', 'region_id']));
         return response()->json(['message' => 'تم إضافة الشارع بنجاح', 'data' => $street], 201);
     }
+
+    // =======================================
+    // 3. التعديل والحذف (PUT / DELETE) للمدير
+    // =======================================
+
+    // المحافظات
+    public function updateGovernorate(Request $request, $id) {
+        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        $gov = Governorate::findOrFail($id);
+        $request->validate(['name' => 'required|string|max:100|unique:governorates,name,'.$id.',gov_id']);
+        $gov->update($request->only('name'));
+        return response()->json(['message' => 'تم تعديل المحافظة بنجاح', 'data' => $gov], 200);
+    }
+    public function destroyGovernorate(Request $request, $id) {
+        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        Governorate::findOrFail($id)->delete(); // الحذف سيمسح كل المناطق والشوارع التابعة بفضل Cascade
+        return response()->json(['message' => 'تم حذف المحافظة ومحتوياتها بنجاح'], 200);
+    }
+
+    // المناطق
+    public function updateRegion(Request $request, $id) {
+        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        $region = Region::findOrFail($id);
+        $request->validate([
+            'name'   => 'required|string|max:100',
+            'gov_id' => 'required|exists:governorates,gov_id'
+        ]);
+        $region->update($request->only(['name', 'gov_id']));
+        return response()->json(['message' => 'تم تعديل المنطقة بنجاح', 'data' => $region], 200);
+    }
+    public function destroyRegion(Request $request, $id) {
+        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        Region::findOrFail($id)->delete();
+        return response()->json(['message' => 'تم حذف المنطقة بنجاح'], 200);
+    }
+
+    // الشوارع
+    public function updateStreet(Request $request, $id) {
+        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        $street = Street::findOrFail($id);
+        $request->validate([
+            'name'      => 'required|string|max:100',
+            'region_id' => 'required|exists:regions,region_id'
+        ]);
+        $street->update($request->only(['name', 'region_id']));
+        return response()->json(['message' => 'تم تعديل الشارع بنجاح', 'data' => $street], 200);
+    }
+    public function destroyStreet(Request $request, $id) {
+        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        Street::findOrFail($id)->delete();
+        return response()->json(['message' => 'تم حذف الشارع بنجاح'], 200);
+    }
 }

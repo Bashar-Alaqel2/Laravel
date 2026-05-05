@@ -40,4 +40,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/lookups/regions', [App\Http\Controllers\Api\LookupController::class, 'storeRegion']);
     Route::post('/lookups/streets', [App\Http\Controllers\Api\LookupController::class, 'storeStreet']);
     
+    // تعديل وحذف البيانات من قبل المدير العام (PUT & DELETE)
+    Route::put('/lookups/governorates/{id}', [App\Http\Controllers\Api\LookupController::class, 'updateGovernorate']);
+    Route::delete('/lookups/governorates/{id}', [App\Http\Controllers\Api\LookupController::class, 'destroyGovernorate']);
+    
+    Route::put('/lookups/regions/{id}', [App\Http\Controllers\Api\LookupController::class, 'updateRegion']);
+    Route::delete('/lookups/regions/{id}', [App\Http\Controllers\Api\LookupController::class, 'destroyRegion']);
+    
+    Route::put('/lookups/streets/{id}', [App\Http\Controllers\Api\LookupController::class, 'updateStreet']);
+    Route::delete('/lookups/streets/{id}', [App\Http\Controllers\Api\LookupController::class, 'destroyStreet']);
+    
 });
