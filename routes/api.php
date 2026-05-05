@@ -3,8 +3,20 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 
-// رابط إنشاء حساب جديد
-Route::post('/register', [AuthController::class, 'register']);
+use App\Http\Controllers\Api\ScreenController;
 
-// رابط تسجيل الدخول
+// مسارات مفتوحة (لا تحتاج تسجيل دخول)
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// مسارات محمية (يجب إرسال التوكن للوصول إليها)
+Route::middleware('auth:sanctum')->group(function () {
+    
+    // تسجيل الخروج
+    Route::post('/logout', [AuthController::class, 'logout']);
+    
+    // === مسارات الشاشات (للوحة التحكم ولتطبيق Flutter) ===
+    Route::apiResource('screens', ScreenController::class); // تنشئ مسارات: index, store, show, update, destroy
+    Route::post('screens/{id}/ping', [ScreenController::class, 'ping']); // مسار خاص لنبض الشاشة (Flutter)
+    
+});

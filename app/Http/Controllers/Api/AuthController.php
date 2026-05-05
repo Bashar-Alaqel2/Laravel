@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\UserSession;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -21,7 +22,7 @@ class AuthController extends Controller
             'full_name' => 'required|string|max:100',
             'email'     => 'required|string|email|max:150|unique:users',
             'phone'     => 'required|string|max:20|unique:users',
-            'location'  => 'required|string',
+            'location'  => 'nullable|string|max:255',
             'password'  => 'required|string|min:6',
         ]);
 
@@ -30,7 +31,6 @@ class AuthController extends Controller
         }
 
         // 2. البحث عن رقم صلاحية "معلن" لإعطائها للمستخدم الجديد تلقائياً
-        // (تأكد أنك قمت بإضافة صلاحية اسمها Advertiser يدوياً في الداتا بيز)
         $advertiserRole = Role::where('role_name', 'Advertiser')->first();
 
         // 3. إدخال البيانات في قاعدة البيانات
@@ -41,6 +41,7 @@ class AuthController extends Controller
             'phone'         => $request->phone,
             'location'      => $request->location,
             'password_hash' => Hash::make($request->password), // تشفير كلمة المرور
+            'account_status'=> 'Active'
         ]);
 
         return response()->json([
@@ -51,40 +52,69 @@ class AuthController extends Controller
 
 
     // ==========================================
-    // 2. دالة تسجيل الدخول (Login بالايميل أو الجوال)
+    // 2. دالة تسجيل الدخول (Login)
     // ==========================================
     public function login(Request $request)
     {
-        // زميلك سيرسل حقل اسمه login_id (قد يكون إيميل أو جوال) وحقل password
+        // زميلك سيرسل (الايميل أو الجوال) في حقل اسمه login_id ، وكلمة المرور، بالإضافة لبيانات الجهاز
         $request->validate([
-            'login_id' => 'required|string',
-            'password' => 'required|string',
+            'login_id'    => 'required|string',
+            'password'    => 'required|string',
+            'device_name' => 'nullable|string', // اسم الجهاز (مثل iPhone 13)
+            'device_id'   => 'nullable|string', // معرف فريد للجهاز
         ]);
 
-        // 1. معرفة هل المدخل هو إيميل أم رقم جوال؟
+        // 1. تحديد ما إذا كان المدخل إيميل أم رقم جوال
         $loginField = filter_var($request->login_id, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
 
         // 2. البحث عن المستخدم في قاعدة البيانات
         $user = User::where($loginField, $request->login_id)->first();
 
-        // 3. التحقق من وجود المستخدم وصحة كلمة المرور
+        // 2. التحقق من وجود المستخدم وصحة كلمة المرور
         if (!$user || !Hash::check($request->password, $user->password_hash)) {
             return response()->json(['message' => 'بيانات الدخول غير صحيحة.'], 401);
         }
 
-        // 4. التحقق من أن الحساب غير موقوف
+        // 3. التحقق من أن الحساب غير موقوف
         if ($user->account_status !== 'Active') {
             return response()->json(['message' => 'هذا الحساب موقوف، يرجى التواصل مع الإدارة.'], 403);
         }
 
-        // 5. توليد مفتاح الأمان (Token) للتطبيق ولوحة التحكم
-        $token = $user->createToken('SuqAppToken')->plainTextToken;
+        // 4. توليد مفتاح الأمان (Token) 
+        $deviceName = $request->device_name ?? 'Unknown Device';
+        $token = $user->createToken($deviceName)->plainTextToken;
+
+        // 5. حفظ بيانات الجلسة في جدول user_sessions الذي صممه زيد
+        $deviceId = $request->device_id ?? uniqid('dev_');
+        
+        UserSession::updateOrCreate(
+            ['user_id' => $user->user_id, 'device_id' => $deviceId],
+            [
+                'device_name' => $deviceName,
+                'ip_address'  => $request->ip(),
+                'last_active' => now(),
+                'is_revoked'  => false
+            ]
+        );
 
         return response()->json([
             'message' => 'تم تسجيل الدخول بنجاح.',
             'user'    => $user,
             'role'    => $user->role->role_name ?? 'بدون صلاحية',
-            'token'   => $token // هذا التوكن سيحتفظ به زميلك ليستخدمه في الطلبات القادمة
+            'token'   => $token 
+        ], 200);
+    }
+
+    // ==========================================
+    // 3. دالة تسجيل الخروج (Logout)
+    // ==========================================
+    public function logout(Request $request)
+    {
+        // 1. حذف التوكن الحالي حتى لا يمكن استخدامه مجدداً
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'message' => 'تم تسجيل الخروج بنجاح.'
         ], 200);
     }
 }
