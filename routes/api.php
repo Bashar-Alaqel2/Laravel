@@ -19,4 +19,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('screens', ScreenController::class); // تنشئ مسارات: index, store, show, update, destroy
     Route::post('screens/{id}/ping', [ScreenController::class, 'ping']); // مسار خاص لنبض الشاشة (Flutter)
     
+    // === مسارات الإعلانات ===
+    Route::get('/ads', [App\Http\Controllers\Api\AdController::class, 'index']);
+    Route::post('/ads', [App\Http\Controllers\Api\AdController::class, 'store']);
+    Route::put('/ads/{id}/status', [App\Http\Controllers\Api\AdController::class, 'updateStatus']);
+    Route::delete('/ads/{id}', [App\Http\Controllers\Api\AdController::class, 'destroy']);
+    
 });
