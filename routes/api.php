@@ -25,6 +25,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/ads/{id}/status', [App\Http\Controllers\Api\AdController::class, 'updateStatus']);
     Route::delete('/ads/{id}', [App\Http\Controllers\Api\AdController::class, 'destroy']);
     
+    // === مسارات لوحة التحكم (Dashboard) ===
+    Route::get('/dashboard/overview', [App\Http\Controllers\Api\DashboardController::class, 'getOverview']);
+    
     // === مسارات القوائم المنسدلة (Lookups) ===
     // جلب البيانات (GET)
     Route::get('/lookups/screen-types', [App\Http\Controllers\Api\LookupController::class, 'getScreenTypes']);
