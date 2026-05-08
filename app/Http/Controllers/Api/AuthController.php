@@ -17,23 +17,37 @@ class AuthController extends Controller
     // ==========================================
     public function register(Request $request)
     {
-        // 1. التأكد من أن البيانات التي أرسلها الـ Frontend صحيحة وكاملة
+        // 1. الرسائل المخصصة باللغة العربية
+        $messages = [
+            'full_name.required' => 'عفواً، حقل الاسم بالكامل مطلوب.',
+            'full_name.max'      => 'الاسم طويل جداً، يجب ألا يتجاوز 100 حرف.',
+            'email.required'     => 'يرجى إدخال البريد الإلكتروني.',
+            'email.email'        => 'صيغة البريد الإلكتروني غير صحيحة.',
+            'email.unique'       => 'عفواً، هذا البريد الإلكتروني مسجل لدينا مسبقاً.',
+            'phone.required'     => 'يرجى إدخال رقم الجوال.',
+            'phone.unique'       => 'رقم الجوال هذا مستخدم بالفعل في حساب آخر.',
+            'password.required'  => 'كلمة المرور مطلوبة.',
+            'password.min'       => 'كلمة المرور ضعيفة، يجب أن تتكون من 6 أحرف على الأقل.',
+        ];
+
+        // 2. التأكد من أن البيانات التي أرسلها الـ Frontend صحيحة وكاملة
         $validator = Validator::make($request->all(), [
             'full_name' => 'required|string|max:100',
             'email'     => 'required|string|email|max:150|unique:users',
             'phone'     => 'required|string|max:20|unique:users',
             'location'  => 'nullable|string|max:255',
             'password'  => 'required|string|min:6',
-        ]);
+        ], $messages); // <-- قمنا بتمرير مصفوفة الرسائل هنا
 
         if ($validator->fails()) {
+            // الآن Postman وتطبيقات زملائك ستستلم الخطأ بالعربي
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // 2. البحث عن رقم صلاحية "معلن" لإعطائها للمستخدم الجديد تلقائياً
+        // 3. البحث عن رقم صلاحية "معلن" لإعطائها للمستخدم الجديد تلقائياً
         $advertiserRole = Role::where('role_name', 'Advertiser')->first();
 
-        // 3. إدخال البيانات في قاعدة البيانات
+        // 4. إدخال البيانات في قاعدة البيانات
         $user = User::create([
             'role_id'       => $advertiserRole ? $advertiserRole->role_id : null,
             'full_name'     => $request->full_name,
