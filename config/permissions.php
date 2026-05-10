@@ -64,6 +64,7 @@ return [
             'view_screen_locations', // الوصول للمواقع الدقيقة (GPS) للشاشات
             'update_screen_status',  // تغيير حالة الشاشة (معطلة، قيد الإصلاح، تعمل)
             'submit_maintenance_reports', // إرفاق الملاحظات والصور بعد الصيانة
+            'manage_regions',     // إضافة، تعديل وحذف المناطق والشوارع والمحافظات
         ],
 
         // 5. المحاسب (Accountant) - مسؤول مالي

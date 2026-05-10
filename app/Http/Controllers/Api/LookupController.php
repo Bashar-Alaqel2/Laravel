@@ -72,7 +72,7 @@ class LookupController extends Controller
     // إضافة محافظة
     public function storeGovernorate(Request $request)
     {
-        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        // if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
 
         $request->validate(['name' => 'required|string|max:100|unique:governorates,name']);
         
@@ -83,7 +83,7 @@ class LookupController extends Controller
     // إضافة منطقة
     public function storeRegion(Request $request)
     {
-        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
 
         $request->validate([
             'name'   => 'required|string|max:100',
@@ -97,7 +97,7 @@ class LookupController extends Controller
     // إضافة شارع
     public function storeStreet(Request $request)
     {
-        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        // if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
 
         $request->validate([
             'name'      => 'required|string|max:100',
@@ -108,27 +108,64 @@ class LookupController extends Controller
         return response()->json(['message' => 'تم إضافة الشارع بنجاح', 'data' => $street], 201);
     }
 
+    // إضافة موقع كامل (محافظة، مدينة، شارع) دفعة واحدة
+    public function storeFullLocation(Request $request)
+    {
+        // يمكن تفعيل التحقق من الصلاحيات لاحقاً
+        // if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
+
+        $request->validate([
+            'governorate' => 'required|string|max:100',
+            'city'        => 'required|string|max:100',
+            'street'      => 'required|string|max:100',
+        ]);
+
+        // البحث أو الإنشاء للمحافظة
+        $gov = Governorate::firstOrCreate(['name' => $request->governorate]);
+        
+        // البحث أو الإنشاء للمدينة/المنطقة
+        $region = Region::firstOrCreate([
+            'name' => $request->city,
+            'gov_id' => $gov->gov_id
+        ]);
+        
+        // البحث أو الإنشاء للشارع
+        $street = Street::firstOrCreate([
+            'name' => $request->street,
+            'region_id' => $region->region_id
+        ]);
+
+        return response()->json([
+            'message' => 'تم إضافة الموقع بالكامل بنجاح',
+            'data' => [
+                'governorate' => $gov,
+                'region' => $region,
+                'street' => $street,
+            ]
+        ], 201);
+    }
+
     // =======================================
     // 3. التعديل والحذف (PUT / DELETE) للمدير
     // =======================================
 
     // المحافظات
     public function updateGovernorate(Request $request, $id) {
-        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
         $gov = Governorate::findOrFail($id);
         $request->validate(['name' => 'required|string|max:100|unique:governorates,name,'.$id.',gov_id']);
         $gov->update($request->only('name'));
         return response()->json(['message' => 'تم تعديل المحافظة بنجاح', 'data' => $gov], 200);
     }
     public function destroyGovernorate(Request $request, $id) {
-        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
         Governorate::findOrFail($id)->delete(); // الحذف سيمسح كل المناطق والشوارع التابعة بفضل Cascade
         return response()->json(['message' => 'تم حذف المحافظة ومحتوياتها بنجاح'], 200);
     }
 
     // المناطق
     public function updateRegion(Request $request, $id) {
-        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
         $region = Region::findOrFail($id);
         $request->validate([
             'name'   => 'required|string|max:100',
@@ -138,14 +175,14 @@ class LookupController extends Controller
         return response()->json(['message' => 'تم تعديل المنطقة بنجاح', 'data' => $region], 200);
     }
     public function destroyRegion(Request $request, $id) {
-        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
         Region::findOrFail($id)->delete();
         return response()->json(['message' => 'تم حذف المنطقة بنجاح'], 200);
     }
 
     // الشوارع
     public function updateStreet(Request $request, $id) {
-        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
         $street = Street::findOrFail($id);
         $request->validate([
             'name'      => 'required|string|max:100',
@@ -155,7 +192,7 @@ class LookupController extends Controller
         return response()->json(['message' => 'تم تعديل الشارع بنجاح', 'data' => $street], 200);
     }
     public function destroyStreet(Request $request, $id) {
-        if (!$request->user()->can('manage_all')) return response()->json(['error' => 'ممنوع'], 403);
+        if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
         Street::findOrFail($id)->delete();
         return response()->json(['message' => 'تم حذف الشارع بنجاح'], 200);
     }
