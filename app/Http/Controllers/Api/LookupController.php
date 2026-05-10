@@ -77,7 +77,7 @@ class LookupController extends Controller
     // إضافة محافظة
     public function storeGovernorate(Request $request)
     {
-         if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
+        if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
 
         $request->validate(['name' => 'required|string|max:100|unique:governorates,name']);
         
@@ -102,7 +102,7 @@ class LookupController extends Controller
     // إضافة شارع
     public function storeStreet(Request $request)
     {
-        // if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
+        if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
 
         $request->validate([
             'name'      => 'required|string|max:100',
