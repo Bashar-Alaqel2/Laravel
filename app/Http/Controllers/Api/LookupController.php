@@ -30,6 +30,11 @@ class LookupController extends Controller
         return response()->json(Region::where('gov_id', $gov_id)->get(), 200);
     }
 
+    public function getAllRegions()
+    {
+        return response()->json(Region::with('governorate')->get(), 200);
+    }
+
     public function getStreets($region_id)
     {
         // نجلب الشوارع مع المنطقة والمحافظة التابعة لها ليكون الاسم واضحاً
@@ -72,7 +77,7 @@ class LookupController extends Controller
     // إضافة محافظة
     public function storeGovernorate(Request $request)
     {
-        // if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
+         if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
 
         $request->validate(['name' => 'required|string|max:100|unique:governorates,name']);
         

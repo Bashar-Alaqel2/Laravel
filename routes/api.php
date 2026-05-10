@@ -33,6 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/lookups/screen-types', [App\Http\Controllers\Api\LookupController::class, 'getScreenTypes']);
     Route::get('/lookups/governorates', [App\Http\Controllers\Api\LookupController::class, 'getGovernorates']);
     Route::get('/lookups/governorates/{gov_id}/regions', [App\Http\Controllers\Api\LookupController::class, 'getRegions']);
+    Route::get('/lookups/all-regions', [App\Http\Controllers\Api\LookupController::class, 'getAllRegions']);
     Route::get('/lookups/regions/{region_id}/streets', [App\Http\Controllers\Api\LookupController::class, 'getStreets']);
     Route::get('/lookups/streets', [App\Http\Controllers\Api\LookupController::class, 'getAllStreets']); // جلب كل الشوارع مباشرة
     Route::get('/lookups/categories', [App\Http\Controllers\Api\LookupController::class, 'getCategories']);
