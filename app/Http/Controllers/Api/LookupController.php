@@ -51,6 +51,15 @@ class LookupController extends Controller
         return response()->json(Category::all(), 200);
     }
 
+    public function getUsersByRole($roleName)
+    {
+        $users = \App\Models\User::whereHas('role', function($query) use ($roleName) {
+            $query->where('role_name', $roleName);
+        })->get(['user_id', 'full_name', 'email']);
+        
+        return response()->json($users, 200);
+    }
+
     // =======================================
     // 2. الإضافة (POST) للمدير (System Configuration)
     // =======================================

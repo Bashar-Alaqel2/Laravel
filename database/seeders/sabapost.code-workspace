@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "C:/Users/BasharALaqel/StudioProjects/SabaPost"
+		},
+		{
+			"path": "C:/Users/BasharALaqel/StudioProjects/Taif"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "format",
+		"php.validate.executablePath": ""
+	}
+}

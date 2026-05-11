@@ -28,20 +28,33 @@ class ScreenController extends Controller
             'screen_name' => 'required|string|max:100',
             'type_id'     => 'nullable|exists:screen_types,type_id',
             'street_id'   => 'nullable|exists:streets,street_id',
+            'owner_id'    => 'nullable|exists:users,user_id',
+            'linked_by'   => 'nullable|exists:users,user_id',
         ]);
 
-        // إنشاء الشاشة، وربط المالك بالمستخدم الذي أرسل الطلب (عن طريق التوكن)
+        // توليد كود ربط عشوائي فريد من 6 أحرف (أرقام وحروف)
+        $pairingCode = strtoupper(\Illuminate\Support\Str::random(6));
+
+        // التأكد من عدم تكراره (نادرة الحدوث لكن للاحتياط)
+        while (Screen::where('pairing_code', $pairingCode)->exists()) {
+            $pairingCode = strtoupper(\Illuminate\Support\Str::random(6));
+        }
+
+        // إنشاء الشاشة
         $screen = Screen::create([
-            'owner_id'    => $request->user()->user_id, 
+            'owner_id'    => $request->owner_id ?? $request->user()->user_id, 
             'screen_name' => $request->screen_name,
             'type_id'     => $request->type_id,
             'street_id'   => $request->street_id,
-            'status'      => 'Offline', // عند التسجيل تكون الشاشة غير متصلة حتى يفتحها نجم الدين من التطبيق
+            'linked_by'   => $request->linked_by,
+            'status'      => 'Offline', // عند التسجيل تكون الشاشة غير متصلة
+            'pairing_code'=> $pairingCode,
         ]);
 
         return response()->json([
             'message' => 'تم إضافة الشاشة بنجاح',
-            'screen'  => $screen
+            'screen'  => $screen,
+            'pairing_code' => $pairingCode // إرجاع الكود ليعرض في لوحة التحكم
         ], 201);
     }
 
@@ -109,22 +122,74 @@ class ScreenController extends Controller
 
     // ==========================================
     // 6. نبض الشاشة (Ping) لتحديث حالتها إلى "متصلة"
-    // (نجم الدين سيقوم ببرمجة التطبيق ليرسل طلب لهذا المسار كل دقيقة مثلاً)
+    // (يتم إرسال الـ mac_address للتعرف على الشاشة)
     // ==========================================
-    public function ping(Request $request, $id)
+    public function ping(Request $request)
     {
-        $screen = Screen::find($id);
+        $request->validate([
+            'mac_address' => 'required|string',
+        ]);
+
+        $screen = Screen::where('mac_address', $request->mac_address)->first();
         
         if (!$screen) {
-            return response()->json(['message' => 'الشاشة غير موجودة'], 404);
+            return response()->json(['message' => 'الشاشة غير مربوطة'], 404);
         }
 
         // نجعل الشاشة Online ونسجل وقت الاتصال
         $screen->update([
             'status' => 'Online',
-            'linked_at' => now(), // وقت آخر اتصال
+            'linked_at' => now(), // وقت آخر نبض/اتصال
         ]);
 
-        return response()->json(['message' => 'الشاشة متصلة وتعمل بشكل سليم', 'status' => 'Online'], 200);
+        return response()->json([
+            'success' => true,
+            'status' => 'Online',
+            'last_seen' => $screen->linked_at
+        ], 200);
+    }
+
+    // ==========================================
+    // 6. ربط الشاشة الفيزيائية بالنظام (من تطبيق التلفاز)
+    // ==========================================
+    public function linkScreen(Request $request)
+    {
+        $request->validate([
+            'pairing_code' => 'required|string',
+            'mac_address'  => 'required|string',
+        ]);
+
+        $screen = Screen::where('pairing_code', $request->pairing_code)->first();
+
+        if (!$screen) {
+            return response()->json([
+                'success' => false,
+                'message' => 'كود الربط غير صحيح أو منتهي الصلاحية'
+            ], 404);
+        }
+
+        // إذا كانت الشاشة مربوطة مسبقاً بجهاز آخر
+        if ($screen->mac_address && $screen->mac_address !== $request->mac_address) {
+            return response()->json([
+                'success' => false,
+                'message' => 'هذه الشاشة مربوطة مسبقاً بجهاز آخر'
+            ], 400);
+        }
+
+        // تحديث بيانات الشاشة
+        $screen->update([
+            'mac_address' => $request->mac_address,
+            'status' => 'Online', // تصبح أونلاين فور الربط
+            'linked_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم الربط بنجاح',
+            'data' => [
+                'screen_id' => $screen->screen_id,
+                'screen_name' => $screen->screen_name,
+            ]
+        ], 200);
     }
 }

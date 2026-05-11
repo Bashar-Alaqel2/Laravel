@@ -8,7 +8,7 @@ class Screen extends Model {
     protected $table = 'screens';
     protected $primaryKey = 'screen_id';
     public $timestamps = false;
-    protected $fillable = ['owner_id', 'type_id', 'street_id', 'screen_name', 'status', 'linked_by', 'linked_at', 'disconnected_at'];
+    protected $fillable = ['owner_id', 'type_id', 'street_id', 'screen_name', 'status', 'linked_by', 'linked_at', 'disconnected_at', 'mac_address', 'pairing_code'];
 
     public function owner() {
         return $this->belongsTo(User::class, 'owner_id', 'user_id');
