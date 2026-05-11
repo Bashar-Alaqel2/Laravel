@@ -26,16 +26,15 @@ class ScreenController extends Controller
         // التحقق من صحة البيانات
         $request->validate([
             'screen_name' => 'required|string|max:100',
+            'mac_address' => 'required|string|unique:screens,mac_address', // المعرف يجب أن يكون فريداً
             'type_id'     => 'nullable|exists:screen_types,type_id',
             'street_id'   => 'nullable|exists:streets,street_id',
             'owner_id'    => 'nullable|exists:users,user_id',
             'linked_by'   => 'nullable|exists:users,user_id',
         ]);
 
-        // توليد كود ربط عشوائي فريد من 6 أحرف (أرقام وحروف)
+        // لا زلنا نولد كود ربط كمعرف إضافي أو احتياطي
         $pairingCode = strtoupper(\Illuminate\Support\Str::random(6));
-
-        // التأكد من عدم تكراره (نادرة الحدوث لكن للاحتياط)
         while (Screen::where('pairing_code', $pairingCode)->exists()) {
             $pairingCode = strtoupper(\Illuminate\Support\Str::random(6));
         }
@@ -44,17 +43,18 @@ class ScreenController extends Controller
         $screen = Screen::create([
             'owner_id'    => $request->owner_id ?? $request->user()->user_id, 
             'screen_name' => $request->screen_name,
+            'mac_address' => $request->mac_address,
             'type_id'     => $request->type_id,
             'street_id'   => $request->street_id,
             'linked_by'   => $request->linked_by,
-            'status'      => 'Offline', // عند التسجيل تكون الشاشة غير متصلة
+            'status'      => 'Offline',
             'pairing_code'=> $pairingCode,
         ]);
 
         return response()->json([
-            'message' => 'تم إضافة الشاشة بنجاح',
-            'screen'  => $screen,
-            'pairing_code' => $pairingCode // إرجاع الكود ليعرض في لوحة التحكم
+            'success' => true,
+            'message' => 'تم إضافة الشاشة بنجاح وربطها بالمعرف المذكور',
+            'data'    => $screen
         ], 201);
     }
 
