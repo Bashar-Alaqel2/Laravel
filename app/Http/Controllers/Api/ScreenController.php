@@ -192,4 +192,33 @@ class ScreenController extends Controller
             ]
         ], 200);
     }
+
+    // ==========================================
+    // 7. التحقق من حالة الشاشة (من تطبيق التلفاز)
+    // ==========================================
+    public function check(Request $request)
+    {
+        $request->validate([
+            'mac_address' => 'required|string',
+        ]);
+
+        $screen = Screen::where('mac_address', $request->mac_address)->first();
+
+        if (!$screen) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الشاشة غير مسجلة أو غير مربوطة'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'screen_id'   => $screen->screen_id,
+                'screen_name' => $screen->screen_name,
+                'status'      => $screen->status,
+                'is_linked'   => true
+            ]
+        ], 200);
+    }
 }

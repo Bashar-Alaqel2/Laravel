@@ -11,7 +11,8 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // مسار ربط الشاشات الفيزيائية
 Route::post('/screens/link', [ScreenController::class, 'linkScreen']);
-Route::post('/screens/ping', [ScreenController::class, 'ping']); // مسار نبض الشاشة المفتوح للشاشات المربوطة
+Route::post('/screens/ping', [ScreenController::class, 'ping']);
+Route::get('/screens/check', [ScreenController::class, 'check']); // مسار نبض الشاشة المفتوح للشاشات المربوطة
 
 // مسارات محمية (يجب إرسال التوكن للوصول إليها)
 Route::middleware('auth:sanctum')->group(function () {
