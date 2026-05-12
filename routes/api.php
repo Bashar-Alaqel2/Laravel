@@ -52,6 +52,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/lookups/categories', [App\Http\Controllers\Api\LookupController::class, 'getCategories']);
     Route::get('/lookups/users-by-role/{roleName}', [App\Http\Controllers\Api\LookupController::class, 'getUsersByRole']); // جلب المستخدمين حسب الدور
     Route::get('/lookups/roles', [App\Http\Controllers\Api\LookupController::class, 'getRoles']); // جلب كل الأدوار
+    Route::post('/lookups/roles', [App\Http\Controllers\Api\LookupController::class, 'storeRole']); // إضافة دور جديد
+    Route::put('/lookups/roles/{id}', [App\Http\Controllers\Api\LookupController::class, 'updateRole']); // تعديل دور
+    Route::delete('/lookups/roles/{id}', [App\Http\Controllers\Api\LookupController::class, 'destroyRole']); // حذف دور
     
     // إضافة البيانات من قبل المدير العام (POST)
     Route::post('/lookups/screen-types', [App\Http\Controllers\Api\LookupController::class, 'storeScreenType']);

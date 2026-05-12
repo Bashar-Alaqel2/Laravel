@@ -215,4 +215,34 @@ class LookupController extends Controller
         Street::findOrFail($id)->delete();
         return response()->json(['message' => 'تم حذف الشارع بنجاح'], 200);
     }
+
+    // إدارة الأدوار (Roles Management)
+    public function storeRole(Request $request)
+    {
+        $request->validate(['role_name' => 'required|string|max:50|unique:roles,role_name']);
+        $role = \App\Models\Role::create(['role_name' => $request->role_name]);
+        return response()->json(['message' => 'تم إضافة الدور بنجاح', 'data' => $role], 201);
+    }
+
+    public function updateRole(Request $request, $id)
+    {
+        $role = \App\Models\Role::findOrFail($id);
+        $request->validate(['role_name' => 'required|string|max:50|unique:roles,role_name,'.$id.',role_id']);
+        $role->update(['role_name' => $request->role_name]);
+        return response()->json(['message' => 'تم تعديل الدور بنجاح', 'data' => $role], 200);
+    }
+
+    public function destroyRole($id)
+    {
+        $role = \App\Models\Role::findOrFail($id);
+        
+        // منع حذف الأدوار الأساسية لسلامة النظام
+        $protectedRoles = ['SuperAdmin', 'Advertiser', 'ScreenOwner', 'Maintenance'];
+        if (in_array($role->role_name, $protectedRoles)) {
+            return response()->json(['message' => 'لا يمكن حذف الأدوار الأساسية للنظام!'], 403);
+        }
+
+        $role->delete();
+        return response()->json(['message' => 'تم حذف الدور بنجاح'], 200);
+    }
 }
