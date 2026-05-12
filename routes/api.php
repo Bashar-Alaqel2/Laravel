@@ -23,6 +23,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // تسجيل الخروج
     Route::post('/logout', [AuthController::class, 'logout']);
     
+    // === إدارة المستخدمين ===
+    Route::get('/users', [AuthController::class, 'getAllUsers']);
+    Route::post('/users', [AuthController::class, 'storeUser']);
+    Route::delete('/users/{id}', [AuthController::class, 'destroyUser']);
+    
     // === مسارات الشاشات (للوحة التحكم ولتطبيق Flutter) ===
     Route::apiResource('screens', ScreenController::class); // تنشئ مسارات: index, store, show, update, destroy
     
@@ -45,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/lookups/streets', [App\Http\Controllers\Api\LookupController::class, 'getAllStreets']); // جلب كل الشوارع مباشرة
     Route::get('/lookups/categories', [App\Http\Controllers\Api\LookupController::class, 'getCategories']);
     Route::get('/lookups/users-by-role/{roleName}', [App\Http\Controllers\Api\LookupController::class, 'getUsersByRole']); // جلب المستخدمين حسب الدور
+    Route::get('/lookups/roles', [App\Http\Controllers\Api\LookupController::class, 'getRoles']); // جلب كل الأدوار
     
     // إضافة البيانات من قبل المدير العام (POST)
     Route::post('/lookups/screen-types', [App\Http\Controllers\Api\LookupController::class, 'storeScreenType']);

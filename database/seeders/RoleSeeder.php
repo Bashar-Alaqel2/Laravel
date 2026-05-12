@@ -13,19 +13,19 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         $roles = [
-            ['role_name' => 'SuperAdmin',  'description' => 'المدير العام للنظام بصلاحيات مطلقة'],
-            ['role_name' => 'Advertiser',  'description' => 'معلن يقوم برفع الإعلانات ودفع تكلفتها'],
-            ['role_name' => 'ScreenOwner', 'description' => 'مالك شاشات يقوم بتأجيرها للنظام'],
-            ['role_name' => 'Maintenance', 'description' => 'فريق الصيانة والدعم الفني'],
-            ['role_name' => 'Accountant',  'description' => 'المحاسب المالي للنظام'],
-            ['role_name' => 'Secretary',   'description' => 'سكرتير ومشرف على مراجعة المحتوى']
+            ['role_name' => 'SuperAdmin'],
+            ['role_name' => 'Advertiser'],
+            ['role_name' => 'ScreenOwner'],
+            ['role_name' => 'Maintenance'],
+            ['role_name' => 'Accountant'],
+            ['role_name' => 'Secretary']
         ];
 
         // إدخال الأدوار فقط إذا لم تكن موجودة مسبقاً لتجنب التكرار
         foreach ($roles as $role) {
             DB::table('roles')->updateOrInsert(
                 ['role_name' => $role['role_name']],
-                ['description' => $role['description'], 'created_at' => now(), 'updated_at' => now()]
+                []
             );
         }
     }

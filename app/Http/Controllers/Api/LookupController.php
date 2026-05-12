@@ -53,11 +53,16 @@ class LookupController extends Controller
 
     public function getUsersByRole($roleName)
     {
-        $users = \App\Models\User::whereHas('role', function($query) use ($roleName) {
+        $users = \App\Models\User::with('role')->whereHas('role', function($query) use ($roleName) {
             $query->where('role_name', $roleName);
-        })->get(['user_id', 'full_name', 'email']);
+        })->get(['user_id', 'role_id', 'full_name', 'email']);
         
         return response()->json($users, 200);
+    }
+
+    public function getRoles()
+    {
+        return response()->json(\App\Models\Role::all(), 200);
     }
 
     // =======================================

@@ -131,4 +131,58 @@ class AuthController extends Controller
             'message' => 'تم تسجيل الخروج بنجاح.'
         ], 200);
     }
+
+    // ==========================================
+    // 4. إدارة المستخدمين (للمدير العام)
+    // ==========================================
+
+    // جلب كل المستخدمين
+    public function getAllUsers(Request $request)
+    {
+        // يمكننا إضافة فلاتر حسب الدور هنا مستقبلاً
+        $users = User::with('role')->orderBy('created_at', 'desc')->get();
+        return response()->json($users, 200);
+    }
+
+    // إضافة مستخدم جديد (من قبل المدير)
+    public function storeUser(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'full_name' => 'required|string|max:100',
+            'email'     => 'required|string|email|max:150|unique:users',
+            'phone'     => 'required|string|max:20|unique:users',
+            'role_id'   => 'required|exists:roles,role_id',
+            'password'  => 'required|string|min:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user = User::create([
+            'role_id'       => $request->role_id,
+            'full_name'     => $request->full_name,
+            'email'         => $request->email,
+            'phone'         => $request->phone,
+            'location'      => $request->location ?? 'غير محدد',
+            'password_hash' => Hash::make($request->password),
+            'account_status'=> 'Active'
+        ]);
+
+        return response()->json(['message' => 'تم إضافة المستخدم بنجاح', 'data' => $user->load('role')], 201);
+    }
+
+    // حذف مستخدم
+    public function destroyUser($id)
+    {
+        $user = User::findOrFail($id);
+        
+        // منع حذف النفس
+        if ($user->user_id === auth()->id()) {
+            return response()->json(['message' => 'لا يمكنك حذف حسابك الشخصي!'], 403);
+        }
+
+        $user->delete();
+        return response()->json(['message' => 'تم حذف المستخدم بنجاح'], 200);
+    }
 }
