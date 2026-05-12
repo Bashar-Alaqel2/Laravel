@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // === إدارة المستخدمين ===
     Route::get('/users', [AuthController::class, 'getAllUsers']);
     Route::post('/users', [AuthController::class, 'storeUser']);
+    Route::put('/users/{id}/role', [AuthController::class, 'updateUserRole']);
     Route::delete('/users/{id}', [AuthController::class, 'destroyUser']);
     
     // === مسارات الشاشات (للوحة التحكم ولتطبيق Flutter) ===

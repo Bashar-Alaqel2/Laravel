@@ -185,4 +185,21 @@ class AuthController extends Controller
         $user->delete();
         return response()->json(['message' => 'تم حذف المستخدم بنجاح'], 200);
     }
+
+    // تحديث رتبة/دور المستخدم
+    public function updateUserRole(Request $request, $id)
+    {
+        $request->validate([
+            'role_id' => 'required|exists:roles,role_id'
+        ]);
+
+        $user = User::findOrFail($id);
+        $user->role_id = $request->role_id;
+        $user->save();
+
+        return response()->json([
+            'message' => 'تم تحديث رتبة المستخدم بنجاح',
+            'user' => $user->load('role')
+        ], 200);
+    }
 }
