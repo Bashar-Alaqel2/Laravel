@@ -15,6 +15,8 @@ Route::post('/screens/ping', [ScreenController::class, 'ping']);
 Route::get('/screens/check', [ScreenController::class, 'check']);
 Route::get('/playlist', [App\Http\Controllers\Api\PlaylistController::class, 'getPlaylist']);
 Route::get('/settings', function() { return response()->json(['success' => true, 'data' => []]); });
+
+Route::post('/payments/stripe/webhook', [App\Http\Controllers\Api\StripePaymentController::class, 'handleWebhook']);
 Route::get('/tickers', function() { return response()->json(['success' => true, 'data' => null]); }); // مسار نبض الشاشة المفتوح للشاشات المربوطة
 
 // مسارات محمية (يجب إرسال التوكن للوصول إليها)
@@ -79,5 +81,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/financial/payments', [App\Http\Controllers\Api\FinancialController::class, 'recordPayment']);
     Route::post('/financial/approve-payment/{id}', [App\Http\Controllers\Api\FinancialController::class, 'approvePayment']);
     Route::get('/financial/my-earnings', [App\Http\Controllers\Api\FinancialController::class, 'getOwnerEarnings']);
+    
+    Route::apiResource('payment-methods', App\Http\Controllers\Api\PaymentMethodController::class);
+    Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createPaymentIntent']);
     
 });

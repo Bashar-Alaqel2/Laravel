@@ -74,7 +74,7 @@ class FinancialController extends Controller
     // 2. توزيع الأرباح على ملاك الشاشات
     // (يتم اقتطاع نسبة للمنصة والباقي للشاشات)
     // ==========================================
-    private function distributeEarnings(Advertisement $ad, $totalAmount)
+    public function distributeEarnings(Advertisement $ad, $totalAmount)
     {
         // نسبة المنصة (مثلاً 20%)
         $platformFeeRate = 0.20;
