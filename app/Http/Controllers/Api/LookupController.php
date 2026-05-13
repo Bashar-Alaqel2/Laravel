@@ -224,6 +224,29 @@ class LookupController extends Controller
         return response()->json(['message' => 'تم إضافة الدور بنجاح', 'data' => $role], 201);
     }
 
+    public function storeCategory(Request $request)
+    {
+        if (!$request->user()->can('manage_all')) {
+            return response()->json(['error' => 'هذه الصلاحية للمدير العام فقط.'], 403);
+        }
+
+        $request->validate([
+            'category_name' => 'required|string|max:100|unique:categories,category_name',
+            'price'         => 'required|numeric',
+            'max_duration'  => 'required|integer',
+            'max_size'      => 'required|integer',
+        ]);
+
+        $category = Category::create([
+            'category_name' => $request->category_name,
+            'price'         => $request->price,
+            'max_duration'  => $request->max_duration,
+            'max_size'      => $request->max_size,
+        ]);
+
+        return response()->json(['message' => 'تم إضافة التصنيف بنجاح', 'data' => $category], 201);
+    }
+
     public function updateRole(Request $request, $id)
     {
         $role = \App\Models\Role::findOrFail($id);

@@ -106,14 +106,14 @@ class AdController extends Controller
     // ==========================================
     public function updateStatus(Request $request, $id)
     {
-        // فقط السكرتير أو الآدمن يستطيع الموافقة
+        // فقط السكرتير أو الآدمن يستطيع التغيير
         if (!$request->user()->can('approve_ads') && !$request->user()->can('manage_all')) {
-            return response()->json(['error' => 'ليس لديك صلاحية لاعتماد الإعلانات.'], 403);
+            return response()->json(['error' => 'ليس لديك صلاحية لتغيير حالة الإعلانات.'], 403);
         }
 
         $request->validate([
-            'status' => 'required|in:Approved,Rejected',
-            'reason' => 'required_if:status,Rejected|string|nullable' // مطلوب سبب في حال الرفض
+            'status' => 'required|in:Active,Paused,Rejected',
+            'reason' => 'required_if:status,Rejected|string|nullable'
         ]);
 
         $ad = Advertisement::find($id);
@@ -130,8 +130,9 @@ class AdController extends Controller
         $ad->save();
 
         return response()->json([
-            'message' => "تم تغيير حالة الإعلان إلى {$ad->status}.",
-            'ad'      => $ad
+            'success' => true,
+            'message' => "تم تغيير حالة الإعلان بنجاح.",
+            'data'      => $ad
         ], 200);
     }
 
