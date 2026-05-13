@@ -74,6 +74,9 @@ class AdController extends Controller
             $path = $file->store('ads', 'public');
             $sizeInMB = $file->getSize() / 1048576;
 
+            // تحديد الحالة الأولية: إذا وجد إيصال فهي "بانتظار المراجعة"، إذا لم يوجد فهي "بانتظار الدفع"
+            $initialStatus = $request->hasFile('receipt') ? 'Pending' : 'waiting_payment';
+
             $ad = Advertisement::create([
                 'advertiser_id'   => $request->advertiser_id ?? $request->user()->user_id,
                 'category_id'     => $request->category_id,
@@ -86,7 +89,7 @@ class AdController extends Controller
                 'daily_frequency' => $request->daily_frequency,
                 'total_cost'      => $request->total_cost,
                 'package_name'    => $request->package_name,
-                'status'          => 'Pending',
+                'status'          => $initialStatus,
             ]);
 
             // ربط الشاشات
