@@ -29,37 +29,35 @@ class StripePaymentController extends Controller
     /**
      * إنشاء PaymentIntent لعملية دفع جديدة
      */
-    public function createPaymentIntent(Request $request)
+    public function createIntent(Request $request)
     {
-        $request->validate([
-            'ad_id' => 'required|exists:advertisements,ad_id',
-        ]);
+        $request->validate(['ad_id' => 'required|exists:advertisements,ad_id']);
+        
+        $ad = Advertisement::findOrFail($request->ad_id);
+
+        // جلب وسيلة دفع Stripe النشطة التي تحتوي على مفتاح سري
+        $paymentMethod = \App\Models\PaymentMethod::whereNotNull('stripe_secret_key')
+            ->where('stripe_secret_key', '!=', '')
+            ->first();
+
+        if (!$paymentMethod) {
+            return response()->json(['success' => false, 'message' => 'لم يتم إعداد مفاتيح Stripe في لوحة الإدارة'], 400);
+        }
+
+        // استخدام المفتاح السري الذي أدخله المدير في الواجهة
+        Stripe::setApiKey($paymentMethod->stripe_secret_key);
 
         try {
-            $this->setStripeKey();
-            $ad = Advertisement::findOrFail($request->ad_id);
-            
-            // تحويل المبلغ إلى سنتات (Stripe يستخدم السنت)
-            $amount = (int)($ad->total_cost * 100);
-
-            $paymentIntent = PaymentIntent::create([
-                'amount' => $amount,
+            $intent = PaymentIntent::create([
+                'amount' => (int)($ad->total_cost * 100), // تحويل الدولار إلى سنت
                 'currency' => 'usd',
-                'metadata' => [
-                    'ad_id' => $ad->ad_id,
-                    'user_id' => $request->user()->user_id,
-                ],
-                'automatic_payment_methods' => [
-                    'enabled' => true,
-                ],
+                'metadata' => ['ad_id' => $ad->ad_id],
             ]);
 
             return response()->json([
                 'success' => true,
-                'clientSecret' => $paymentIntent->client_secret,
-                'paymentIntentId' => $paymentIntent->id
+                'clientSecret' => $intent->client_secret,
             ]);
-
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
