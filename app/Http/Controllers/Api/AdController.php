@@ -17,21 +17,24 @@ class AdController extends Controller
     {
         $user = $request->user();
 
-        // الإدارة والسكرتارية يرون كل الإعلانات
+        // الإدارة والسكرتارية يرون كل الإعلانات مع الشاشات والمواقع
         if ($user->can('manage_all') || $user->can('review_ads')) {
-            $ads = Advertisement::where('is_deleted', false)->get();
-            return response()->json($ads, 200);
+            $ads = Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])
+                                ->where('is_deleted', false)
+                                ->get();
+            return response()->json(['success' => true, 'data' => $ads], 200);
         }
 
         // المعلن يرى إعلاناته فقط
         if ($user->can('view_own_reports')) {
-            $ads = Advertisement::where('advertiser_id', $user->user_id)
+            $ads = Advertisement::with(['screens', 'category'])
+                                ->where('advertiser_id', $user->user_id)
                                 ->where('is_deleted', false)
                                 ->get();
-            return response()->json($ads, 200);
+            return response()->json(['success' => true, 'data' => $ads], 200);
         }
 
-        return response()->json(['error' => 'ليس لديك صلاحية لرؤية الإعلانات.'], 403);
+        return response()->json(['success' => false, 'message' => 'ليس لديك صلاحية لرؤية الإعلانات.'], 403);
     }
 
     // ==========================================
@@ -41,39 +44,61 @@ class AdController extends Controller
     {
         // التحقق من صلاحية "رفع الإعلانات"
         if (!$request->user()->can('create_campaigns')) {
-            return response()->json(['error' => 'ليس لديك صلاحية لرفع الإعلانات.'], 403);
+            return response()->json(['success' => false, 'message' => 'ليس لديك صلاحية لرفع الإعلانات.'], 403);
         }
 
         $validator = Validator::make($request->all(), [
-            'title'       => 'required|string|max:150',
-            'category_id' => 'nullable|exists:categories,category_id',
-            'duration'    => 'required|integer|min:5', // مدة الإعلان بالثواني
-            'file'        => 'required|file|mimes:mp4,jpeg,png,gif|max:51200', // أقصى حجم 50 ميجا
+            'title'           => 'required|string|max:150',
+            'advertiser_id'   => 'nullable|exists:users,user_id', // إذا لم يرسل، نستخدم الحالي
+            'category_id'     => 'nullable|exists:categories,category_id',
+            'duration'        => 'required|integer|min:1', 
+            'file'            => 'required|file|mimes:mp4,mov,avi,jpeg,png,jpg|max:51200', 
+            'start_date'      => 'required|date',
+            'end_date'        => 'required|date|after_or_equal:start_date',
+            'daily_frequency' => 'required|integer|min:1',
+            'total_cost'      => 'required|numeric',
+            'package_name'    => 'nullable|string',
+            'screen_ids'      => 'required|array',
+            'screen_ids.*'    => 'exists:screens,screen_id',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 400);
         }
 
-        // حفظ الملف في مجلد storage/app/public/ads
-        $file = $request->file('file');
-        $path = $file->store('ads', 'public');
-        $sizeInMB = $file->getSize() / 1048576; // تحويل البايت إلى ميجابايت
+        try {
+            // حفظ الملف
+            $file = $request->file('file');
+            $path = $file->store('ads', 'public');
+            $sizeInMB = $file->getSize() / 1048576;
 
-        $ad = Advertisement::create([
-            'advertiser_id' => $request->user()->user_id,
-            'category_id'   => $request->category_id,
-            'title'         => $request->title,
-            'file_path'     => $path,
-            'duration'      => $request->duration,
-            'file_size'     => round($sizeInMB, 2),
-            'status'        => 'Pending', // حالة مبدئية: قيد الانتظار
-        ]);
+            $ad = Advertisement::create([
+                'advertiser_id'   => $request->advertiser_id ?? $request->user()->user_id,
+                'category_id'     => $request->category_id,
+                'title'           => $request->title,
+                'file_path'       => '/storage/' . $path,
+                'duration'        => $request->duration,
+                'file_size'       => round($sizeInMB, 2),
+                'start_date'      => $request->start_date,
+                'end_date'        => $request->end_date,
+                'daily_frequency' => $request->daily_frequency,
+                'total_cost'      => $request->total_cost,
+                'package_name'    => $request->package_name,
+                'status'          => 'Pending',
+            ]);
 
-        return response()->json([
-            'message' => 'تم رفع الإعلان بنجاح، وهو بانتظار موافقة الإدارة.',
-            'ad'      => $ad
-        ], 201);
+            // ربط الشاشات
+            $ad->screens()->sync($request->screen_ids);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم رفع الإعلان بنجاح، وهو بانتظار موافقة الإدارة.',
+                'ad'      => $ad
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'خطأ في السيرفر: ' . $e->getMessage()], 500);
+        }
     }
 
     // ==========================================

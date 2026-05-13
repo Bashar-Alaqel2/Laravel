@@ -6,7 +6,22 @@ class Advertisement extends Model {
     protected $table = 'advertisements';
     protected $primaryKey = 'ad_id';
     public $timestamps = false; // using uploaded_at manually
-    protected $fillable = ['advertiser_id', 'category_id', 'title', 'file_path', 'duration', 'file_size', 'status', 'rejection_reason', 'is_deleted'];
+    protected $fillable = [
+        'advertiser_id', 
+        'category_id', 
+        'title', 
+        'file_path', 
+        'duration', 
+        'file_size', 
+        'status', 
+        'rejection_reason', 
+        'is_deleted',
+        'start_date',
+        'end_date',
+        'daily_frequency',
+        'total_cost',
+        'package_name'
+    ];
 
     public function advertiser() {
         return $this->belongsTo(User::class, 'advertiser_id', 'user_id');
@@ -17,8 +32,8 @@ class Advertisement extends Model {
     }
 
     public function screens() {
-        return $this->belongsToMany(Screen::class, 'ad_screens', 'ad_id', 'screen_id')
-                    ->withPivot('price');
+        return $this->belongsToMany(Screen::class, 'advertisement_screen', 'ad_id', 'screen_id')
+                    ->withTimestamps();
     }
 
     public function schedules() {
