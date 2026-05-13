@@ -268,4 +268,40 @@ class LookupController extends Controller
         $role->delete();
         return response()->json(['message' => 'تم حذف الدور بنجاح'], 200);
     }
+
+    public function updateCategory(Request $request, $id)
+    {
+        if (!$request->user()->can('manage_all')) {
+            return response()->json(['error' => 'هذه الصلاحية للمدير العام فقط.'], 403);
+        }
+
+        $request->validate([
+            'category_name' => 'required|string|max:100|unique:categories,category_name,'.$id.',category_id',
+            'price'         => 'required|numeric',
+            'max_duration'  => 'required|integer',
+            'max_size'      => 'required|integer',
+        ]);
+
+        $category = \App\Models\Category::findOrFail($id);
+        $category->update([
+            'category_name' => $request->category_name,
+            'price'         => $request->price,
+            'max_duration'  => $request->max_duration,
+            'max_size'      => $request->max_size,
+        ]);
+
+        return response()->json(['message' => 'تم تحديث التصنيف بنجاح', 'data' => $category], 200);
+    }
+
+    public function destroyCategory(Request $request, $id)
+    {
+        if (!$request->user()->can('manage_all')) {
+            return response()->json(['error' => 'هذه الصلاحية للمدير العام فقط.'], 403);
+        }
+
+        $category = \App\Models\Category::findOrFail($id);
+        $category->delete();
+
+        return response()->json(['message' => 'تم حذف التصنيف بنجاح'], 200);
+    }
 }
