@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\UserSession;
+use App\Models\BankAccount;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -169,6 +170,18 @@ class AuthController extends Controller
             'account_status'=> 'Active'
         ]);
 
+        $role = Role::find($request->role_id);
+        if ($role && $role->role_name === 'ScreenOwner') {
+            if ($request->bank_name && $request->account_number) {
+                BankAccount::create([
+                    'user_id' => $user->user_id,
+                    'bank_name' => $request->bank_name,
+                    'account_name' => $request->account_name ?? $request->full_name,
+                    'account_number' => $request->account_number,
+                ]);
+            }
+        }
+
         return response()->json(['message' => 'تم إضافة المستخدم بنجاح', 'data' => $user->load('role')], 201);
     }
 
@@ -196,6 +209,20 @@ class AuthController extends Controller
         $user = User::findOrFail($id);
         $user->role_id = $request->role_id;
         $user->save();
+
+        $role = Role::find($request->role_id);
+        if ($role && $role->role_name === 'ScreenOwner') {
+            if ($request->bank_name && $request->account_number) {
+                BankAccount::updateOrCreate(
+                    ['user_id' => $user->user_id],
+                    [
+                        'bank_name' => $request->bank_name,
+                        'account_name' => $request->account_name ?? $user->full_name,
+                        'account_number' => $request->account_number,
+                    ]
+                );
+            }
+        }
 
         return response()->json([
             'message' => 'تم تحديث رتبة المستخدم بنجاح',

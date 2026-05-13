@@ -20,7 +20,9 @@ class Advertisement extends Model {
         'end_date',
         'daily_frequency',
         'total_cost',
-        'package_name'
+        'package_name',
+        'payment_status',
+        'payment_method'
     ];
 
     public function advertiser() {

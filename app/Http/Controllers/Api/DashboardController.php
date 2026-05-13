@@ -20,8 +20,9 @@ class DashboardController extends Controller
     public function getOverview(Request $request)
     {
         // 1. حساب بطاقات المؤشرات (KPI Cards)
-        // نحاول جلب البيانات الحقيقية من قاعدة البيانات
-        $totalRevenue = Invoice::where('status', 'paid')->sum('total_amount') ?? 0; 
+        $totalRevenue = \App\Models\FinancialLedger::where('transaction_type', 'payment_in')
+                                                  ->where('status', 'completed')
+                                                  ->sum('amount') ?? 0;
         $activeScreensCount = Screen::where('status', 'active')->count() ?? 0;
         $totalScreensCount = Screen::count() ?? 0;
         $pendingAdsCount = Advertisement::where('status', 'pending')->count() ?? 0;

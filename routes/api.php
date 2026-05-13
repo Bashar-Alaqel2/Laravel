@@ -74,4 +74,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/lookups/streets/{id}', [App\Http\Controllers\Api\LookupController::class, 'updateStreet']);
     Route::delete('/lookups/streets/{id}', [App\Http\Controllers\Api\LookupController::class, 'destroyStreet']);
     
+    // === مسارات النظام المالي ===
+    Route::get('/financial/ledger', [App\Http\Controllers\Api\FinancialController::class, 'getLedger']);
+    Route::post('/financial/payments', [App\Http\Controllers\Api\FinancialController::class, 'recordPayment']);
+    Route::get('/financial/my-earnings', [App\Http\Controllers\Api\FinancialController::class, 'getOwnerEarnings']);
+    
 });
