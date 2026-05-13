@@ -18,7 +18,8 @@ class FinancialLedger extends Model
         'payment_method',
         'reference_number',
         'status',
-        'notes'
+        'notes',
+        'receipt_path'
     ];
 
     // --- Relationships ---

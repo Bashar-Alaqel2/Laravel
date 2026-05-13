@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Advertisement;
+use App\Models\FinancialLedger;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -60,6 +61,7 @@ class AdController extends Controller
             'package_name'    => 'nullable|string',
             'screen_ids'      => 'required|array',
             'screen_ids.*'    => 'exists:screens,screen_id',
+            'receipt'         => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120', // 5MB max
         ]);
 
         if ($validator->fails()) {
@@ -90,9 +92,23 @@ class AdController extends Controller
             // ربط الشاشات
             $ad->screens()->sync($request->screen_ids);
 
+            // إذا أرفق صورة إيصال الدفع، نسجلها في النظام المالي كـ "قيد الانتظار"
+            if ($request->hasFile('receipt')) {
+                $receiptPath = $request->file('receipt')->store('receipts', 'public');
+                FinancialLedger::create([
+                    'advertisement_id' => $ad->ad_id,
+                    'user_id'          => $ad->advertiser_id,
+                    'transaction_type' => 'payment_pending',
+                    'amount'           => $ad->total_cost,
+                    'status'           => 'pending',
+                    'notes'            => "إيصال دفع مرفق عند إنشاء الإعلان: {$ad->title}",
+                    'receipt_path'     => '/storage/' . $receiptPath,
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'تم رفع الإعلان بنجاح، وهو بانتظار موافقة الإدارة.',
+                'message' => 'تم رفع الإعلان بنجاح. ' . ($request->hasFile('receipt') ? 'بانتظار مراجعة الإيصال وتأكيد الدفع.' : 'يرجى إتمام عملية الدفع لتفعيل الإعلان.'),
                 'ad'      => $ad
             ], 201);
 

@@ -77,6 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // === مسارات النظام المالي ===
     Route::get('/financial/ledger', [App\Http\Controllers\Api\FinancialController::class, 'getLedger']);
     Route::post('/financial/payments', [App\Http\Controllers\Api\FinancialController::class, 'recordPayment']);
+    Route::post('/financial/approve-payment/{id}', [App\Http\Controllers\Api\FinancialController::class, 'approvePayment']);
     Route::get('/financial/my-earnings', [App\Http\Controllers\Api\FinancialController::class, 'getOwnerEarnings']);
     
 });

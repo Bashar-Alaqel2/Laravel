@@ -162,4 +162,44 @@ class FinancialController extends Controller
             ]
         ], 200);
     }
+
+    // ==========================================
+    // 5. اعتماد دفعة (تغيير الحالة من Pending إلى Completed)
+    // ==========================================
+    public function approvePayment(Request $request, $id)
+    {
+        try {
+            DB::beginTransaction();
+
+            $ledger = FinancialLedger::findOrFail($id);
+            
+            if ($ledger->transaction_type !== 'payment_pending') {
+                return response()->json(['success' => false, 'message' => 'هذه العملية ليست دفعة معلقة.'], 400);
+            }
+
+            // 1. تحديث حالة القيد المالي
+            $ledger->update([
+                'status' => 'completed',
+                'transaction_type' => 'payment_in'
+            ]);
+
+            // 2. تحديث حالة الإعلان
+            if ($ledger->advertisement_id) {
+                $ad = Advertisement::find($ledger->advertisement_id);
+                if ($ad) {
+                    $ad->update(['payment_status' => 'paid']);
+                    
+                    // 3. توزيع الأرباح
+                    $this->distributeEarnings($ad, $ledger->amount);
+                }
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'تم اعتماد الدفع وتوزيع الأرباح بنجاح.']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'خطأ: ' . $e->getMessage()], 500);
+        }
+    }
 }
