@@ -238,10 +238,12 @@ class AuthController extends Controller
     public function getSessions(Request $request)
     {
         $currentToken = $request->user()->currentAccessToken();
-        $tokens = $request->user()->tokens()->orderBy('last_used_at', 'desc')->get()->map(function ($token) use ($currentToken) {
+        $user = $request->user();
+        $tokens = $user->tokens()->orderBy('last_used_at', 'desc')->get()->map(function ($token) use ($currentToken, $user) {
             return [
                 'id' => $token->id,
                 'device_name' => $token->name,
+                'user_name' => $user->full_name,
                 'last_used_at' => $token->last_used_at,
                 'created_at' => $token->created_at,
                 'is_current' => $token->id === $currentToken->id,
