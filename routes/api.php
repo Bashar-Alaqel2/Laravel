@@ -45,6 +45,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // === مسارات لوحة التحكم (Dashboard) ===
     Route::get('/dashboard/overview', [App\Http\Controllers\Api\DashboardController::class, 'getOverview']);
     
+    // === مسارات المعلن (Advertiser) ===
+    Route::get('/advertiser/dashboard', [App\Http\Controllers\Api\AdvertiserController::class, 'getDashboard']);
+    Route::get('/advertiser/financials', [App\Http\Controllers\Api\AdvertiserController::class, 'getFinancials']);
+    
     // === مسارات القوائم المنسدلة (Lookups) ===
     // جلب البيانات (GET)
     Route::get('/lookups/screen-types', [App\Http\Controllers\Api\LookupController::class, 'getScreenTypes']);

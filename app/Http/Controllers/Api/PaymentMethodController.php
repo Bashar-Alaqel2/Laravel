@@ -41,8 +41,8 @@ class PaymentMethodController extends Controller
         $method = PaymentMethod::create([
             'name'                   => $request->name,
             'account_details'        => $request->account_details,
-            'stripe_publishable_key' => $request->stripe_publishable_key,
-            'stripe_secret_key'      => $request->stripe_secret_key,
+            'stripe_publishable_key' => trim($request->stripe_publishable_key ?? ''),
+            'stripe_secret_key'      => trim($request->stripe_secret_key ?? ''),
             'is_active'              => true,
         ]);
 
@@ -57,7 +57,17 @@ class PaymentMethodController extends Controller
         }
 
         $method = PaymentMethod::findOrFail($id);
-        $method->update($request->only(['name', 'account_details', 'is_active', 'stripe_publishable_key', 'stripe_secret_key']));
+        
+        $data = $request->only(['name', 'account_details', 'is_active', 'stripe_publishable_key', 'stripe_secret_key']);
+        
+        if (isset($data['stripe_publishable_key'])) {
+            $data['stripe_publishable_key'] = trim($data['stripe_publishable_key']);
+        }
+        if (isset($data['stripe_secret_key'])) {
+            $data['stripe_secret_key'] = trim($data['stripe_secret_key']);
+        }
+
+        $method->update($data);
 
         return response()->json(['success' => true, 'data' => $method]);
     }
