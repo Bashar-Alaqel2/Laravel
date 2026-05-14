@@ -31,7 +31,14 @@ class ScreenController extends Controller
             'street_id'   => 'nullable|exists:streets,street_id',
             'owner_id'    => 'nullable|exists:users,user_id',
             'linked_by'   => 'nullable|exists:users,user_id',
+            'photo'       => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // الصورة إجبارية
         ]);
+
+        // معالجة رفع الصورة
+        $imagePath = null;
+        if ($request->hasFile('photo')) {
+            $imagePath = $request->file('photo')->store('screens', 'public');
+        }
 
         // لا زلنا نولد كود ربط كمعرف إضافي أو احتياطي
         $pairingCode = strtoupper(\Illuminate\Support\Str::random(6));
@@ -47,6 +54,7 @@ class ScreenController extends Controller
             'type_id'     => $request->type_id,
             'street_id'   => $request->street_id,
             'linked_by'   => $request->linked_by,
+            'image_path'  => $imagePath,
             'status'      => 'Offline',
             'pairing_code'=> $pairingCode,
         ]);
