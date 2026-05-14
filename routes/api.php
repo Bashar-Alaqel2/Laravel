@@ -14,9 +14,7 @@ Route::post('/screens/link', [ScreenController::class, 'linkScreen']);
 Route::post('/screens/ping', [ScreenController::class, 'ping']);
 Route::get('/screens/check', [ScreenController::class, 'check']);
 Route::get('/playlist', [App\Http\Controllers\Api\PlaylistController::class, 'getPlaylist']);
-Route::get('/settings', function() { return response()->json(['success' => true, 'data' => []]);     Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createIntent']);
-    Route::post('/payments/stripe/confirm', [App\Http\Controllers\Api\StripePaymentController::class, 'confirmPayment']);
-});
+Route::get('/settings', function() { return response()->json(['success' => true, 'data' => []]); });
 
 Route::post('/payments/stripe/webhook', [App\Http\Controllers\Api\StripePaymentController::class, 'handleWebhook']);
 Route::get('/tickers', function() { return response()->json(['success' => true, 'data' => null]); }); // مسار نبض الشاشة المفتوح للشاشات المربوطة
@@ -26,6 +24,10 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // تسجيل الخروج
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // === الدفع الإلكتروني Stripe ===
+    Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createPaymentIntent']);
+    Route::post('/payments/stripe/confirm', [App\Http\Controllers\Api\StripePaymentController::class, 'confirmPayment']);
     
     // === إدارة المستخدمين ===
     Route::get('/users', [AuthController::class, 'getAllUsers']);
