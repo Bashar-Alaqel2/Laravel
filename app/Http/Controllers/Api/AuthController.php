@@ -229,4 +229,60 @@ class AuthController extends Controller
             'user' => $user->load('role')
         ], 200);
     }
+
+    // ==========================================
+    // إدارة الجلسات (Sessions Management)
+    // ==========================================
+
+    // جلب كافة الأجهزة (الجلسات) النشطة للمستخدم الحالي
+    public function getSessions(Request $request)
+    {
+        $currentToken = $request->user()->currentAccessToken();
+        $tokens = $request->user()->tokens()->orderBy('last_used_at', 'desc')->get()->map(function ($token) use ($currentToken) {
+            return [
+                'id' => $token->id,
+                'device_name' => $token->name,
+                'last_used_at' => $token->last_used_at,
+                'created_at' => $token->created_at,
+                'is_current' => $token->id === $currentToken->id,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $tokens
+        ], 200);
+    }
+
+    // تسجيل الخروج من كافة الأجهزة الأخرى
+    public function revokeOtherSessions(Request $request)
+    {
+        $currentTokenId = $request->user()->currentAccessToken()->id;
+        $request->user()->tokens()->where('id', '!=', $currentTokenId)->delete();
+        
+        return response()->json([
+            'success' => true, 
+            'message' => 'تم تسجيل الخروج من جميع الأجهزة الأخرى بنجاح.'
+        ], 200);
+    }
+
+    // إنهاء جلسة معينة (طرد جهاز محدد)
+    public function revokeSession(Request $request, $tokenId)
+    {
+        $currentTokenId = $request->user()->currentAccessToken()->id;
+        
+        if ($currentTokenId == $tokenId) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'لا يمكنك إنهاء الجلسة الحالية من هنا، استخدم زر تسجيل الخروج الرئيسي.'
+            ], 400);
+        }
+
+        $request->user()->tokens()->where('id', $tokenId)->delete();
+        
+        return response()->json([
+            'success' => true, 
+            'message' => 'تم إنهاء الجلسة للجهاز المحدد بنجاح.'
+        ], 200);
+    }
 }

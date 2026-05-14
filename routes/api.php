@@ -29,6 +29,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createPaymentIntent']);
     Route::post('/payments/stripe/confirm', [App\Http\Controllers\Api\StripePaymentController::class, 'confirmPayment']);
     
+    // === إدارة الجلسات ===
+    Route::get('/sessions', [AuthController::class, 'getSessions']);
+    Route::delete('/sessions/others', [AuthController::class, 'revokeOtherSessions']);
+    Route::delete('/sessions/{id}', [AuthController::class, 'revokeSession']);
+    
     // === إدارة المستخدمين ===
     Route::get('/users', [AuthController::class, 'getAllUsers']);
     Route::post('/users', [AuthController::class, 'storeUser']);
