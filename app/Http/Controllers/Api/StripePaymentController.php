@@ -17,7 +17,7 @@ class StripePaymentController extends Controller
     /**
      * إنشاء PaymentIntent لعملية دفع جديدة
      */
-    public function createIntent(Request $request)
+    public function createPaymentIntent(Request $request)
     {
         $request->validate(['ad_id' => 'required|exists:advertisements,ad_id']);
         
