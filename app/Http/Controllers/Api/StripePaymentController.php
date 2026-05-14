@@ -68,20 +68,30 @@ class StripePaymentController extends Controller
 
             $ad = Advertisement::findOrFail($request->ad_id);
             
-            // تحديث حالة الإعلان
-            $ad->update(['status' => 'pending']); // ينتقل للمراجعة بعد الدفع
-
             // تسجيل العملية في السجل المالي
-            FinancialLedger::create([
-                'user_id' => $ad->advertiser_id,
-                'type' => 'income',
-                'amount' => $ad->total_cost,
-                'description' => 'دفع قيمة إعلان عبر Stripe: ' . $ad->title,
-                'status' => 'completed'
+            $ledger = FinancialLedger::create([
+                'advertisement_id' => $ad->ad_id,
+                'user_id'          => $ad->advertiser_id,
+                'transaction_type' => 'payment_in',
+                'amount'           => $ad->total_cost,
+                'payment_method'   => 'stripe',
+                'reference_number' => $request->payment_intent_id,
+                'notes'            => 'دفع قيمة إعلان عبر Stripe: ' . $ad->title,
+                'status'           => 'completed'
             ]);
 
+            // تحديث حالة الدفع في الإعلان
+            $ad->update([
+                'payment_status' => 'paid',
+                'payment_method' => 'stripe',
+                'status' => 'pending' // ينتقل للمراجعة بعد الدفع
+            ]);
+
+            // توزيع الأرباح على ملاك الشاشات
+            app(\App\Http\Controllers\Api\FinancialController::class)->distributeEarnings($ad, $ad->total_cost);
+
             DB::commit();
-            return response()->json(['success' => true, 'message' => 'تم تأكيد الدفع بنجاح']);
+            return response()->json(['success' => true, 'message' => 'تم تأكيد الدفع وتوزيع الأرباح بنجاح']);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
