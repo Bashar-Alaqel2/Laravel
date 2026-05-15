@@ -2,7 +2,11 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+// تنظيف مساحة السيرفر من ملفات الإعلانات المحذوفة بعد 30 يوم
+Schedule::command('ads:clean-deleted-files --days=30')->dailyAt('02:00');

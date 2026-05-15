@@ -172,6 +172,7 @@ class AdController extends Controller
 
         // الحذف المنطقي (Soft Delete)
         $ad->is_deleted = true;
+        $ad->deleted_at = now();
         $ad->save();
 
         return response()->json(['message' => 'تم حذف الإعلان بنجاح.'], 200);
