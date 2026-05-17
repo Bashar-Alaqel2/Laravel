@@ -46,8 +46,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // === مسارات الإعلانات ===
     Route::get('/ads', [App\Http\Controllers\Api\AdController::class, 'index']);
     Route::post('/ads', [App\Http\Controllers\Api\AdController::class, 'store']);
+    Route::post('/ads/calculate-cost', [App\Http\Controllers\Api\AdController::class, 'calculateCost']);
     Route::put('/ads/{id}/status', [App\Http\Controllers\Api\AdController::class, 'updateStatus']);
     Route::delete('/ads/{id}', [App\Http\Controllers\Api\AdController::class, 'destroy']);
+
+    // === مسارات أوقات الذروة والتسعير (Peak Hours & Pricing) ===
+    Route::apiResource('screen-pricing-slots', App\Http\Controllers\Api\ScreenPricingSlotController::class);
     
     // === مسارات لوحة التحكم (Dashboard) ===
     Route::get('/dashboard/overview', [App\Http\Controllers\Api\DashboardController::class, 'getOverview']);

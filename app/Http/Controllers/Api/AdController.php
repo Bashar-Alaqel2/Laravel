@@ -234,4 +234,87 @@ class AdController extends Controller
 
         return response()->json(['message' => 'تم حذف الإعلان بنجاح.'], 200);
     }
+
+    // ==========================================
+    // 5. حساب تكلفة الحملة بناءً على الشاشات وأوقات الذروة
+    // ==========================================
+    public function calculateCost(Request $request)
+    {
+        $request->validate([
+            'category_id'       => 'required|exists:categories,category_id',
+            'screen_ids'        => 'required|array',
+            'screen_ids.*'      => 'exists:screens,screen_id',
+            'start_date'        => 'required|date',
+            'end_date'          => 'required|date|after_or_equal:start_date',
+            'target_start_time' => 'nullable|date_format:H:i',
+            'target_end_time'   => 'nullable|date_format:H:i',
+            'interval_minutes'  => 'required|integer|min:1',
+        ]);
+
+        $category = \App\Models\Category::findOrFail($request->category_id);
+        $basePrice = (double) $category->price;
+
+        $startDate = new \DateTime($request->start_date);
+        $endDate = new \DateTime($request->end_date);
+        $days = $startDate->diff($endDate)->days + 1;
+
+        $frequency = (int) $request->interval_minutes;
+
+        $reqStartTime = $request->target_start_time ?? '00:00:00';
+        if (strlen($reqStartTime) === 5) {
+            $reqStartTime .= ':00';
+        }
+        $reqEndTime = $request->target_end_time ?? '23:59:59';
+        if (strlen($reqEndTime) === 5) {
+            $reqEndTime .= ':00';
+        }
+
+        $totalCost = 0.0;
+        $screenDetails = [];
+
+        foreach ($request->screen_ids as $screenId) {
+            $screen = \App\Models\Screen::find($screenId);
+            if (!$screen) continue;
+
+            // التحقق من تداخل الوقت مع أوقات الذروة لهذه الشاشة
+            $multiplier = 1.0;
+            $overlappingSlots = \App\Models\ScreenPricingSlot::where('screen_id', $screenId)
+                ->where(function ($q) use ($reqStartTime, $reqEndTime) {
+                    $q->where('start_time', '<', $reqEndTime)
+                      ->where('end_time', '>', $reqStartTime);
+                })
+                ->get();
+
+            foreach ($overlappingSlots as $slot) {
+                if ($slot->price_multiplier > $multiplier) {
+                    $multiplier = (double) $slot->price_multiplier;
+                }
+            }
+
+            // معادلة احتساب السعر للشاشة الواحدة:
+            // السعر الأساسي * معامل الذروة * عدد الأيام * (التكرار / 10)
+            $screenBasePrice = $basePrice * $multiplier;
+            $screenTotal = $screenBasePrice * $days * ($frequency / 10);
+            
+            $totalCost += $screenTotal;
+
+            $screenDetails[] = [
+                'screen_id' => $screenId,
+                'screen_name' => $screen->screen_name,
+                'multiplier' => $multiplier,
+                'screen_total' => round($screenTotal, 2),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'base_price' => $basePrice,
+                'days' => $days,
+                'frequency' => $frequency,
+                'total_cost' => round($totalCost, 2),
+                'screens' => $screenDetails
+            ]
+        ]);
+    }
 }
