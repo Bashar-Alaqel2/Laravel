@@ -19,12 +19,20 @@ return new class extends Migration
         // تعطيل قيود المفاتيح مؤقتاً لضمان حذف الجداول القديمة بدون مشاكل
         Schema::disableForeignKeyConstraints();
         
-        // 1. حذف جداول المحافظ والفواتير القديمة باستخدام CASCADE للتخلص من أي قيود في PostgreSQL
-        \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS transactions CASCADE');
-        \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS invoice_items CASCADE');
-        \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS invoices CASCADE');
-        \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS wallet_transactions CASCADE');
-        \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS wallets CASCADE');
+        // 1. حذف جداول المحافظ والفواتير القديمة بالتخلص من أي قيود
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS transactions');
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS invoice_items');
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS invoices');
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS wallet_transactions');
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS wallets');
+        } else {
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS transactions CASCADE');
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS invoice_items CASCADE');
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS invoices CASCADE');
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS wallet_transactions CASCADE');
+            \Illuminate\Support\Facades\DB::statement('DROP TABLE IF EXISTS wallets CASCADE');
+        }
 
         // 2. إنشاء جدول الحسابات البنكية لملاك الشاشات
         Schema::create('bank_accounts', function (Blueprint $table) {
