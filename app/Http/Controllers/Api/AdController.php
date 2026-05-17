@@ -39,7 +39,7 @@ class AdController extends Controller
     }
 
     // ==========================================
-    // 2. رفع إعلان جديد (Store)
+    // 2. رفع إعلان جديد (Store) مع خوارزمية Zero-Collision
     // ==========================================
     public function store(Request $request)
     {
@@ -49,19 +49,21 @@ class AdController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'title'           => 'required|string|max:150',
-            'advertiser_id'   => 'nullable|exists:users,user_id', // إذا لم يرسل، نستخدم الحالي
-            'category_id'     => 'nullable|exists:categories,category_id',
-            'duration'        => 'required|integer|min:1', 
-            'file'            => 'required|file|mimes:mp4,mov,avi,jpeg,png,jpg|max:51200', 
-            'start_date'      => 'required|date',
-            'end_date'        => 'required|date|after_or_equal:start_date',
-            'daily_frequency' => 'required|integer|min:1',
-            'total_cost'      => 'required|numeric',
-            'package_name'    => 'nullable|string',
-            'screen_ids'      => 'required|array',
-            'screen_ids.*'    => 'exists:screens,screen_id',
-            'receipt'         => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120', // 5MB max
+            'title'             => 'required|string|max:150',
+            'advertiser_id'     => 'nullable|exists:users,user_id', // إذا لم يرسل، نستخدم الحالي
+            'category_id'       => 'nullable|exists:categories,category_id',
+            'duration'          => 'required|integer|min:1', 
+            'file'              => 'required|file|mimes:mp4,mov,avi,jpeg,png,jpg|max:51200', 
+            'start_date'        => 'required|date',
+            'end_date'          => 'required|date|after_or_equal:start_date',
+            'target_start_time' => 'nullable|date_format:H:i', // جديد: استهداف وقت محدد
+            'target_end_time'   => 'nullable|date_format:H:i', // جديد
+            'interval_minutes'  => 'required|integer|min:1',   // جديد: كل كم دقيقة يعرض
+            'total_cost'        => 'required|numeric',
+            'package_name'      => 'nullable|string',
+            'screen_ids'        => 'required|array',
+            'screen_ids.*'      => 'exists:screens,screen_id',
+            'receipt'           => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120', // 5MB max
         ]);
 
         if ($validator->fails()) {
@@ -69,12 +71,55 @@ class AdController extends Controller
         }
 
         try {
+            // 1. حساب السعة المطلوبة بالثواني في الساعة الواحدة
+            $interval = $request->interval_minutes;
+            $duration = $request->duration;
+            $allocatedSeconds = (60 / $interval) * $duration; // مثلاً (60/5) * 15 = 180 ثانية
+
+            if ($allocatedSeconds > 3600) {
+                return response()->json(['success' => false, 'message' => 'معدل التكرار ومدة الإعلان تتجاوز سعة الساعة الواحدة!'], 400);
+            }
+
+            // 2. التحقق من التضارب (Zero-Collision Algorithm) لكل شاشة
+            $reqStartTime = $request->target_start_time ?? '00:00:00';
+            $reqEndTime   = $request->target_end_time ?? '23:59:59';
+
+            foreach ($request->screen_ids as $screenId) {
+                // جلب مجموع الثواني المحجوزة مسبقاً في هذه الشاشة في نفس الوقت والتاريخ
+                $usedSeconds = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
+                        // نتجاهل الإعلانات المرفوضة والمحذوفة
+                        $q->where('status', '!=', 'Rejected')->whereNull('deleted_at');
+                    })
+                    ->whereHas('advertisement.screens', function($q) use ($screenId) {
+                        $q->where('screens.screen_id', $screenId);
+                    })
+                    ->where('is_active', true)
+                    ->where('start_date', '<=', $request->end_date)
+                    ->where('end_date', '>=', $request->start_date)
+                    ->where(function ($query) use ($reqStartTime, $reqEndTime) {
+                        // تداخل الأوقات: وقت بداية المحجوز أصغر من نهاية المطلوب، ووقت نهاية المحجوز أكبر من بداية المطلوب
+                        $query->where(function($q) use ($reqStartTime, $reqEndTime) {
+                            $q->where('start_time', '<', $reqEndTime)
+                              ->where('end_time', '>', $reqStartTime);
+                        })->orWhereNull('start_time'); // يشمل الإعلانات المفتوحة 24/7
+                    })
+                    ->sum('allocated_seconds');
+
+                if (($usedSeconds + $allocatedSeconds) > 3600) {
+                    $available = 3600 - $usedSeconds;
+                    return response()->json([
+                        'success' => false, 
+                        'message' => "نعتذر، الشاشة رقم {$screenId} ممتلئة ولا تتسع لإعلانك في هذا الوقت. السعة المتبقية: {$available} ثانية في الساعة."
+                    ], 400);
+                }
+            }
+
             // حفظ الملف
             $file = $request->file('file');
             $path = $file->store('ads', 'public');
             $sizeInMB = $file->getSize() / 1048576;
 
-            // تحديد الحالة الأولية: إذا وجد إيصال فهي "بانتظار المراجعة"، إذا لم يوجد فهي "بانتظار الدفع"
+            // تحديد الحالة الأولية
             $initialStatus = $request->hasFile('receipt') ? 'Pending' : 'waiting_payment';
 
             $ad = Advertisement::create([
@@ -82,12 +127,12 @@ class AdController extends Controller
                 'category_id'     => $request->category_id,
                 'title'           => $request->title,
                 'file_path'       => '/storage/' . $path,
-                'duration'        => $request->duration,
+                'duration'        => $duration,
                 'file_size'       => round($sizeInMB, 2),
                 'start_date'      => $request->start_date,
                 'end_date'        => $request->end_date,
-                'daily_frequency' => $request->daily_frequency,
-                'total_cost'      => $request->total_cost,
+                'daily_frequency' => $request->interval_minutes, // استخدمنا الحقل كمتغير مؤقت
+                'total_cost'      => $request->total_cost, // يمكن لاحقاً حسابها من السيرفر مباشرة عبر screen_pricing_slots
                 'package_name'    => $request->package_name,
                 'status'          => $initialStatus,
             ]);
@@ -95,12 +140,24 @@ class AdController extends Controller
             // ربط الشاشات
             $ad->screens()->sync($request->screen_ids);
 
-            // إذا أرفق صورة إيصال الدفع، نسجلها في النظام المالي كـ "قيد الانتظار"
+            // إنشاء الجدولة الزمنية الدقيقة (AdSchedule)
+            \App\Models\AdSchedule::create([
+                'ad_id'             => $ad->ad_id,
+                'start_date'        => $request->start_date,
+                'end_date'          => $request->end_date,
+                'start_time'        => $request->target_start_time,
+                'end_time'          => $request->target_end_time,
+                'interval_minutes'  => $request->interval_minutes,
+                'allocated_seconds' => $allocatedSeconds,
+                'is_active'         => true,
+            ]);
+
+            // تسجيل إيصال الدفع إن وجد
             if ($request->hasFile('receipt')) {
                 $receiptPath = $request->file('receipt')->store('receipts', 'public');
-                FinancialLedger::create([
+                \App\Models\FinancialLedger::create([
                     'advertisement_id' => $ad->ad_id,
-                    'user_id'          => $ad->advertiser_id,
+                    'user_id'          => $ad->advertiser_id ?? $request->user()->user_id,
                     'transaction_type' => 'payment_pending',
                     'amount'           => $ad->total_cost,
                     'status'           => 'pending',
@@ -111,7 +168,7 @@ class AdController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم رفع الإعلان بنجاح. ' . ($request->hasFile('receipt') ? 'بانتظار مراجعة الإيصال وتأكيد الدفع.' : 'يرجى إتمام عملية الدفع لتفعيل الإعلان.'),
+                'message' => 'تم استلام الإعلان بنجاح وتم تأكيد حجز الوقت في الشاشات. ' . ($request->hasFile('receipt') ? 'بانتظار مراجعة الإيصال.' : ''),
                 'ad'      => $ad
             ], 201);
 

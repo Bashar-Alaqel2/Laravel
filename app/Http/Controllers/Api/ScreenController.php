@@ -229,4 +229,71 @@ class ScreenController extends Controller
             ]
         ], 200);
     }
+
+    // ==========================================
+    // 8. جلب سعة الشاشة الزمنية وأوقات الذروة (للمعلن)
+    // ==========================================
+    public function getAvailability(Request $request, $id)
+    {
+        $screen = Screen::find($id);
+        if (!$screen) return response()->json(['message' => 'الشاشة غير موجودة'], 404);
+
+        // إذا لم يرسل تاريخ، نعتبره تاريخ اليوم
+        $date = $request->query('date', now()->toDateString());
+        
+        // جلب أوقات الذروة لهذه الشاشة
+        $pricingSlots = \App\Models\ScreenPricingSlot::where('screen_id', $id)->get();
+
+        $availability = [];
+
+        for ($hour = 0; $hour < 24; $hour++) {
+            $timeString = sprintf('%02d:00:00', $hour);
+            $nextTimeString = sprintf('%02d:00:00', $hour + 1);
+            if ($hour == 23) $nextTimeString = '23:59:59';
+
+            // هل الوقت في وقت ذروة؟
+            $multiplier = 1.0;
+            $isPeak = false;
+            foreach ($pricingSlots as $slot) {
+                if ($timeString >= $slot->start_time && $timeString < $slot->end_time) {
+                    $multiplier = $slot->price_multiplier;
+                    $isPeak = true;
+                    break;
+                }
+            }
+
+            // حساب الثواني المحجوزة في هذه الساعة المحددة
+            $usedSeconds = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
+                    $q->where('status', '!=', 'Rejected')->whereNull('deleted_at');
+                })
+                ->whereHas('advertisement.screens', function($q) use ($id) {
+                    $q->where('screens.screen_id', $id);
+                })
+                ->where('is_active', true)
+                ->where('start_date', '<=', $date)
+                ->where('end_date', '>=', $date)
+                ->where(function ($query) use ($timeString, $nextTimeString) {
+                    // تداخل وقت الإعلان مع هذه الساعة
+                    $query->where(function($q) use ($timeString, $nextTimeString) {
+                        $q->where('start_time', '<', $nextTimeString)
+                          ->where('end_time', '>', $timeString);
+                    })->orWhereNull('start_time'); // يشمل 24/7
+                })
+                ->sum('allocated_seconds');
+
+            $availability[] = [
+                'hour'              => sprintf('%02d:00', $hour),
+                'is_peak'           => $isPeak,
+                'price_multiplier'  => (float) $multiplier,
+                'available_seconds' => max(0, 3600 - $usedSeconds),
+                'is_full'           => $usedSeconds >= 3600,
+            ];
+        }
+
+        return response()->json([
+            'success' => true, 
+            'date' => $date,
+            'data' => $availability
+        ], 200);
+    }
 }
