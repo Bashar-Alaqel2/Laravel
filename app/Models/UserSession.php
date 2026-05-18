@@ -8,6 +8,10 @@ class UserSession extends Model {
     public const UPDATED_AT = null;
     protected $fillable = ['user_id', 'device_name', 'device_id', 'ip_address', 'fcm_token', 'last_active', 'is_revoked'];
 
+    protected $casts = [
+        'is_revoked' => 'boolean',
+    ];
+
     public function user() {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
