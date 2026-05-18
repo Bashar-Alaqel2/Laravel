@@ -23,7 +23,7 @@ class DashboardController extends Controller
         $totalRevenue = \App\Models\FinancialLedger::where('transaction_type', 'payment_in')
                                                   ->where('status', 'completed')
                                                   ->sum('amount') ?? 0;
-        $activeScreensCount = Screen::where('status', 'active')->count() ?? 0;
+        $activeScreensCount = Screen::whereIn('status', ['active', 'Online', 'online'])->count() ?? 0;
         $totalScreensCount = Screen::count() ?? 0;
         $pendingAdsCount = Advertisement::where('status', 'pending')->count() ?? 0;
         $activeUsersCount = User::count() ?? 0;
