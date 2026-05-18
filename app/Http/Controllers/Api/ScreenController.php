@@ -26,7 +26,7 @@ class ScreenController extends Controller
         // التحقق من صحة البيانات
         $request->validate([
             'screen_name' => 'required|string|max:100',
-            'mac_address' => 'required|string|unique:screens,mac_address', // المعرف يجب أن يكون فريداً
+            'mac_address' => 'required|string', // لا نتحقق من unique هنا لأننا سنقوم بتعديل السجل المؤقت
             'type_id'     => 'nullable|exists:screen_types,type_id',
             'street_id'   => 'nullable|exists:streets,street_id',
             'owner_id'    => 'nullable|exists:users,user_id',
@@ -34,34 +34,39 @@ class ScreenController extends Controller
             'photo'       => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // الصورة إجبارية
         ]);
 
+        // التحقق من أن المعرف قد تم توليده مسبقاً من السيرفر وهو قيد التفعيل
+        $screen = Screen::where('mac_address', $request->mac_address)
+                        ->where('status', 'pending_activation')
+                        ->first();
+
+        if (!$screen) {
+            return response()->json([
+                'success' => false,
+                'message' => 'المعرف المدخل غير صالح أو لم يتم توليده من السيرفر مسبقاً!'
+            ], 422);
+        }
+
         // معالجة رفع الصورة
         $imagePath = null;
         if ($request->hasFile('photo')) {
             $imagePath = $request->file('photo')->store('screens', 'public');
         }
 
-        // لا زلنا نولد كود ربط كمعرف إضافي أو احتياطي
-        $pairingCode = strtoupper(\Illuminate\Support\Str::random(6));
-        while (Screen::where('pairing_code', $pairingCode)->exists()) {
-            $pairingCode = strtoupper(\Illuminate\Support\Str::random(6));
-        }
-
-        // إنشاء الشاشة
-        $screen = Screen::create([
+        // تحديث السجل المؤقت وتفعيله
+        $screen->update([
             'owner_id'    => $request->owner_id ?? $request->user()->user_id, 
             'screen_name' => $request->screen_name,
-            'mac_address' => $request->mac_address,
             'type_id'     => $request->type_id,
             'street_id'   => $request->street_id,
             'linked_by'   => $request->linked_by,
             'image_path'  => $imagePath,
-            'status'      => 'Offline',
-            'pairing_code'=> $pairingCode,
+            'status'      => 'active', // تفعيل الشاشة لتصبح نشطة
+            'linked_at'   => now(),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إضافة الشاشة بنجاح وربطها بالمعرف المذكور',
+            'message' => 'تم تفعيل وإضافة الشاشة بنجاح وربطها بالمعرف المولد من السيرفر',
             'data'    => $screen
         ], 201);
     }
@@ -201,9 +206,6 @@ class ScreenController extends Controller
         ], 200);
     }
 
-    // ==========================================
-    // 7. التحقق من حالة الشاشة (من تطبيق التلفاز)
-    // ==========================================
     public function check(Request $request)
     {
         $request->validate([
@@ -219,6 +221,16 @@ class ScreenController extends Controller
             ], 404);
         }
 
+        if ($screen->status === 'pending_activation') {
+            return response()->json([
+                'success' => false,
+                'message' => 'الشاشة بانتظار التفعيل من قبل المدير',
+                'data' => [
+                    'is_linked' => false
+                ]
+            ], 200);
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -227,6 +239,35 @@ class ScreenController extends Controller
                 'status'      => $screen->status,
                 'is_linked'   => true
             ]
+        ], 200);
+    }
+
+    // ==========================================
+    // 7.5 توليد معرف فريد جديد لشاشة (من تطبيق التلفاز)
+    // ==========================================
+    public function generateId(Request $request)
+    {
+        // نولد كود فريد مكون من 6 حروف/أرقام مميزة وسهلة القراءة
+        $characters = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $generatedId = '';
+        do {
+            $generatedId = 'SB-';
+            for ($i = 0; $i < 6; $i++) {
+                $generatedId .= $characters[rand(0, strlen($characters) - 1)];
+            }
+        } while (Screen::where('mac_address', $generatedId)->exists());
+
+        // ننشئ سجلاً مؤقتاً في الشاشات بحالة 'pending_activation'
+        $screen = Screen::create([
+            'screen_name' => 'شاشة غير مفعلة',
+            'mac_address' => $generatedId,
+            'pairing_code'=> $generatedId,
+            'status'      => 'pending_activation',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'device_id' => $generatedId
         ], 200);
     }
 

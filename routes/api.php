@@ -13,6 +13,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/screens/link', [ScreenController::class, 'linkScreen']);
 Route::post('/screens/ping', [ScreenController::class, 'ping']);
 Route::get('/screens/check', [ScreenController::class, 'check']);
+Route::post('/screens/generate-id', [ScreenController::class, 'generateId']);
 Route::get('/playlist', [App\Http\Controllers\Api\PlaylistController::class, 'getPlaylist']);
 Route::get('/settings', function() { return response()->json(['success' => true, 'data' => []]); });
 
