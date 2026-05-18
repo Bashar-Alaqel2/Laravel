@@ -16,7 +16,7 @@ class PaymentMethodController extends Controller
         
         // إذا لم يكن أدمن، يرى فقط النشط
         if (!$request->user()->can('manage_all')) {
-            $query->where('is_active', true);
+            $query->where('is_active', 'true');
         }
 
         return response()->json(['success' => true, 'data' => $query->get()]);

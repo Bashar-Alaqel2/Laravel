@@ -310,7 +310,7 @@ class ScreenController extends Controller
                 ->whereHas('advertisement.screens', function($q) use ($id) {
                     $q->where('screens.screen_id', $id);
                 })
-                ->where('is_active', true)
+                ->where('is_active', 'true')
                 ->where('start_date', '<=', $date)
                 ->where('end_date', '>=', $date)
                 ->where(function ($query) use ($timeString, $nextTimeString) {

@@ -19,6 +19,12 @@ Route::get('/settings', function() { return response()->json(['success' => true,
 
 Route::post('/payments/stripe/webhook', [App\Http\Controllers\Api\StripePaymentController::class, 'handleWebhook']);
 Route::get('/tickers', function() { return response()->json(['success' => true, 'data' => null]); }); // مسار نبض الشاشة المفتوح للشاشات المربوطة
+Route::get('/ads-test', function() {
+    return response()->json([
+        'success' => true,
+        'data' => \App\Models\Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])->where('is_deleted', false)->get()
+    ]);
+});
 
 // مسارات محمية (يجب إرسال التوكن للوصول إليها)
 Route::middleware('auth:sanctum')->group(function () {

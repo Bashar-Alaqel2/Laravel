@@ -31,7 +31,7 @@ class CleanDeletedAdFiles extends Command
         $days = (int) $this->option('days');
         $dateThreshold = Carbon::now()->subDays($days);
 
-        $adsToClean = Advertisement::where('is_deleted', true)
+        $adsToClean = Advertisement::where('is_deleted', 'true')
             ->whereNotNull('deleted_at')
             ->where('deleted_at', '<', $dateThreshold)
             ->whereNull('file_deleted_at')

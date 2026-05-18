@@ -25,6 +25,10 @@ class Advertisement extends Model {
         'payment_method'
     ];
 
+    protected $casts = [
+        'is_deleted' => 'boolean',
+    ];
+
     public function advertiser() {
         return $this->belongsTo(User::class, 'advertiser_id', 'user_id');
     }
