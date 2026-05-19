@@ -130,7 +130,7 @@ class DashboardController extends Controller
             ->join('screens', 'ad_screens.screen_id', '=', 'screens.screen_id')
             ->join('advertisements', 'ad_screens.ad_id', '=', 'advertisements.ad_id')
             ->where('screens.owner_id', $userId)
-            ->where('advertisements.is_deleted', false)
+            ->whereRaw('advertisements.is_deleted = false')
             ->distinct('ad_screens.ad_id')
             ->count();
 
