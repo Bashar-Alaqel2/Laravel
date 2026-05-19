@@ -41,8 +41,8 @@ class PaymentMethodController extends Controller
         $method = PaymentMethod::create([
             'name'                   => $request->name,
             'account_details'        => $request->account_details,
-            'stripe_publishable_key' => trim($request->stripe_publishable_key ?? ''),
-            'stripe_secret_key'      => trim($request->stripe_secret_key ?? ''),
+            'stripe_publishable_key' => !empty(trim($request->stripe_publishable_key)) ? trim($request->stripe_publishable_key) : null,
+            'stripe_secret_key'      => !empty(trim($request->stripe_secret_key)) ? trim($request->stripe_secret_key) : null,
             'is_active'              => true,
         ]);
 
@@ -58,13 +58,13 @@ class PaymentMethodController extends Controller
 
         $method = PaymentMethod::findOrFail($id);
         
-        $data = $request->only(['name', 'account_details', 'is_active', 'stripe_publishable_key', 'stripe_secret_key']);
+        $data = $request->only(['name', 'account_details', 'is_active']);
         
-        if (isset($data['stripe_publishable_key'])) {
-            $data['stripe_publishable_key'] = trim($data['stripe_publishable_key']);
+        if ($request->has('stripe_publishable_key')) {
+            $data['stripe_publishable_key'] = !empty(trim($request->stripe_publishable_key)) ? trim($request->stripe_publishable_key) : null;
         }
-        if (isset($data['stripe_secret_key'])) {
-            $data['stripe_secret_key'] = trim($data['stripe_secret_key']);
+        if ($request->has('stripe_secret_key')) {
+            $data['stripe_secret_key'] = !empty(trim($request->stripe_secret_key)) ? trim($request->stripe_secret_key) : null;
         }
 
         $method->update($data);
