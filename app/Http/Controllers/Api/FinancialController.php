@@ -117,10 +117,19 @@ class FinancialController extends Controller
     // ==========================================
     public function getLedger(Request $request)
     {
+        $user = $request->user();
         $query = FinancialLedger::with(['user', 'advertisement', 'screen']);
 
-        if ($request->has('user_id')) {
-            $query->where('user_id', $request->user_id);
+        if ($user) {
+            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+                // ملاك الشاشات يشاهدون فقط حركاتهم الخاصة
+                $query->where('user_id', $user->user_id);
+            } else {
+                // للمدراء أو الأدوار الإدارية الأخرى، تصفية بحسب المعامل الممرر إن وجد
+                if ($request->has('user_id')) {
+                    $query->where('user_id', $request->user_id);
+                }
+            }
         }
 
         if ($request->has('type')) {

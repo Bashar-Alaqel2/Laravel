@@ -13,8 +13,16 @@ class ScreenController extends Controller
     // ==========================================
     public function index()
     {
-        // نجلب الشاشات مع بيانات المالك ونوع الشاشة والشارع المتواجدة فيه
-        $screens = Screen::with(['owner', 'type', 'street.region.governorate'])->get();
+        $user = request()->user();
+        $query = Screen::with(['owner', 'type', 'street.region.governorate']);
+
+        if ($user) {
+            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+                $query->where('owner_id', $user->user_id);
+            }
+        }
+
+        $screens = $query->get();
         return response()->json($screens, 200);
     }
 
@@ -89,10 +97,19 @@ class ScreenController extends Controller
     // ==========================================
     public function show($id)
     {
-        $screen = Screen::with(['owner', 'type', 'street'])->find($id);
+        $user = request()->user();
+        $screen = Screen::with(['owner', 'type', 'street.region.governorate'])->find($id);
         
         if (!$screen) {
             return response()->json(['message' => 'الشاشة غير موجودة'], 404);
+        }
+
+        if ($user) {
+            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+                if ($screen->owner_id !== $user->user_id) {
+                    return response()->json(['message' => 'غير مصرح لك بالوصول لهذه الشاشة'], 403);
+                }
+            }
         }
 
         return response()->json($screen, 200);
@@ -103,10 +120,19 @@ class ScreenController extends Controller
     // ==========================================
     public function update(Request $request, $id)
     {
+        $user = $request->user();
         $screen = Screen::find($id);
         
         if (!$screen) {
             return response()->json(['message' => 'الشاشة غير موجودة'], 404);
+        }
+
+        if ($user) {
+            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+                if ($screen->owner_id !== $user->user_id) {
+                    return response()->json(['message' => 'غير مصرح لك بتعديل هذه الشاشة'], 403);
+                }
+            }
         }
 
         $request->validate([
@@ -130,13 +156,21 @@ class ScreenController extends Controller
     // ==========================================
     public function destroy($id)
     {
+        $user = request()->user();
         $screen = Screen::find($id);
         
         if (!$screen) {
             return response()->json(['message' => 'الشاشة غير موجودة'], 404);
         }
 
-        // بما أنك تستخدم (SoftDeletes)، فهذا سيخفي الشاشة ولن يحذفها نهائياً من الداتابيز
+        if ($user) {
+            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+                if ($screen->owner_id !== $user->user_id) {
+                    return response()->json(['message' => 'غير مصرح لك بحذف هذه الشاشة'], 403);
+                }
+            }
+        }
+
         $screen->delete(); 
 
         return response()->json(['message' => 'تم حذف الشاشة بنجاح'], 200);

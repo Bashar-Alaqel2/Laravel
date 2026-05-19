@@ -62,6 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // === مسارات لوحة التحكم (Dashboard) ===
     Route::get('/dashboard/overview', [App\Http\Controllers\Api\DashboardController::class, 'getOverview']);
+    Route::get('/owner/dashboard', [App\Http\Controllers\Api\DashboardController::class, 'getOwnerOverview']);
     
     // === مسارات المعلن (Advertiser) ===
     Route::get('/advertiser/dashboard', [App\Http\Controllers\Api\AdvertiserController::class, 'getDashboard']);
