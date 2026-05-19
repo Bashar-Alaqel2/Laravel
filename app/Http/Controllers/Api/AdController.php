@@ -170,6 +170,37 @@ class AdController extends Controller
                 ]);
             }
 
+            // إرسال إشعارات
+            $advertiser = $ad->advertiser ?? $request->user();
+            \App\Models\Notification::create([
+                'user_id' => $ad->advertiser_id,
+                'title' => 'حملة إعلانية جديدة 📢',
+                'message' => "تم رفع حملتك الإعلانية '{$ad->title}' بنجاح وهي الآن " . ($request->hasFile('receipt') ? "بانتظار المراجعة الفنية والمالية." : "بانتظار إتمام عملية الدفع."),
+                'is_read' => false,
+            ]);
+
+            $admins = \App\Models\User::whereHas('role', function($q) {
+                $q->whereIn('role_name', ['Admin', 'Secretary']);
+            })->get();
+
+            foreach ($admins as $admin) {
+                \App\Models\Notification::create([
+                    'user_id' => $admin->user_id,
+                    'title' => 'حملة جديدة بانتظار المراجعة 📢',
+                    'message' => "قام المعلن '{$advertiser->full_name}' برفع حملة جديدة '{$ad->title}' (بانتظار المراجعة).",
+                    'is_read' => false,
+                ]);
+
+                if ($request->hasFile('receipt')) {
+                    \App\Models\Notification::create([
+                        'user_id' => $admin->user_id,
+                        'title' => 'إيصال دفع جديد بانتظار الاعتماد 💳',
+                        'message' => "تم رفع إيصال دفع حوالة بنكية بقيمة '\${$ad->total_cost}' من '{$advertiser->full_name}' (بانتظار الاعتماد).",
+                        'is_read' => false,
+                    ]);
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم استلام الإعلان بنجاح وتم تأكيد حجز الوقت في الشاشات. ' . ($request->hasFile('receipt') ? 'بانتظار مراجعة الإيصال.' : ''),
@@ -208,6 +239,35 @@ class AdController extends Controller
             $ad->rejection_reason = null;
         }
         $ad->save();
+
+        // إرسال إشعار للمعلن
+        if ($ad->status === 'Active') {
+            \App\Models\Notification::create([
+                'user_id' => $ad->advertiser_id,
+                'title' => 'تمت الموافقة على إعلانك! 🎉',
+                'message' => "تمت الموافقة على إعلانك '{$ad->title}'! وهو الآن نشط ويبث على الشاشات.",
+                'is_read' => false,
+            ]);
+
+            // إرسال إشعار لملاك الشاشات المرتبطة بالإعلان
+            foreach ($ad->screens as $screen) {
+                if ($screen->owner_id) {
+                    \App\Models\Notification::create([
+                        'user_id' => $screen->owner_id,
+                        'title' => 'حملة إعلانية جديدة لشاشتك 🖥️',
+                        'message' => "تمت جدولة إعلان جديد '{$ad->title}' على شاشتك '{$screen->screen_name}' (تبدأ من {$ad->start_date}).",
+                        'is_read' => false,
+                    ]);
+                }
+            }
+        } elseif ($ad->status === 'Rejected') {
+            \App\Models\Notification::create([
+                'user_id' => $ad->advertiser_id,
+                'title' => 'تم رفض الإعلان لمخالفته السياسات ⚠️',
+                'message' => "تم رفض الإعلان '{$ad->title}' لمخالفته السياسات، السبب: " . ($request->reason ?? 'يرجى مراجعة التفاصيل.') . " يرجى التعديل.",
+                'is_read' => false,
+            ]);
+        }
 
         return response()->json([
             'success' => true,

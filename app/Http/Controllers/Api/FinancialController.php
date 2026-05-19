@@ -198,6 +198,14 @@ class FinancialController extends Controller
                 if ($ad) {
                     $ad->update(['payment_status' => 'paid']);
                     
+                    // إرسال إشعار للمعلن
+                    \App\Models\Notification::create([
+                        'user_id' => $ad->advertiser_id,
+                        'title' => 'تم تأكيد الدفع بنجاح! 💳',
+                        'message' => "تم تأكيد الدفع بنجاح لقيمة '\${$ledger->amount}' للحملة '{$ad->title}'. إعلانك الآن قيد المراجعة الفنية.",
+                        'is_read' => false,
+                    ]);
+
                     // 3. توزيع الأرباح
                     $this->distributeEarnings($ad, $ledger->amount);
                 }
