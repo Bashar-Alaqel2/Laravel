@@ -119,14 +119,23 @@ class AuthController extends Controller
             'token'   => $token 
         ], 200);
     }
-
     // ==========================================
     // 3. دالة تسجيل الخروج (Logout)
     // ==========================================
     public function logout(Request $request)
     {
-        // 1. حذف التوكن الحالي حتى لا يمكن استخدامه مجدداً
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        $token = $user->currentAccessToken();
+        
+        if ($token) {
+            // Delete from user_sessions table as well to sync databases
+            UserSession::where('user_id', $user->user_id)
+                       ->where('device_name', $token->name)
+                       ->delete();
+                       
+            // Delete the Sanctum token
+            $token->delete();
+        }
 
         return response()->json([
             'message' => 'تم تسجيل الخروج بنجاح.'
@@ -270,12 +279,33 @@ class AuthController extends Controller
             'data' => $tokens
         ], 200);
     }
-
-    // تسجيل الخروج من كافة الأجهزة الأخرى للمستخدم الحالي
+    // تسجيل الخروج من كافة الأجهزة الأخرى للمستخدم الحالي (أو كافة الأجهزة في النظام للمدير العام)
     public function revokeOtherSessions(Request $request)
     {
-        $currentTokenId = $request->user()->currentAccessToken()->id;
-        $request->user()->tokens()->where('id', '!=', $currentTokenId)->delete();
+        $user = $request->user();
+        $currentToken = $user->currentAccessToken();
+        $currentTokenId = $currentToken->id;
+        
+        if ($user->role?->role_name === 'SuperAdmin') {
+            // حذف الجلسات من جدول user_sessions لكافة المستخدمين والأجهزة الأخرى
+            UserSession::where('user_id', '!=', $user->user_id)
+                       ->orWhere(function($query) use ($currentToken, $user) {
+                           $query->where('user_id', $user->user_id)
+                                 ->where('device_name', '!=', $currentToken->name);
+                       })
+                       ->delete();
+
+            // حذف التوكنات للأجهزة الأخرى في النظام بالكامل
+            \Laravel\Sanctum\PersonalAccessToken::where('id', '!=', $currentTokenId)->delete();
+        } else {
+            // حذف الجلسات من جدول user_sessions للأجهزة الأخرى الخاصة بالمستخدم الحالي فقط
+            UserSession::where('user_id', $user->user_id)
+                       ->where('device_name', '!=', $currentToken->name)
+                       ->delete();
+
+            // حذف التوكنات للأجهزة الأخرى الخاصة بالمستخدم الحالي
+            $user->tokens()->where('id', '!=', $currentTokenId)->delete();
+        }
         
         return response()->json([
             'success' => true, 
@@ -286,7 +316,8 @@ class AuthController extends Controller
     // إنهاء جلسة معينة (طرد جهاز محدد)
     public function revokeSession(Request $request, $tokenId)
     {
-        $currentTokenId = $request->user()->currentAccessToken()->id;
+        $currentToken = $request->user()->currentAccessToken();
+        $currentTokenId = $currentToken->id;
         
         if ($currentTokenId == $tokenId) {
             return response()->json([
@@ -295,17 +326,37 @@ class AuthController extends Controller
             ], 400);
         }
 
-        if ($request->user()->role?->role_name === 'SuperAdmin') {
-            \Laravel\Sanctum\PersonalAccessToken::where('id', $tokenId)->delete();
-        } else {
-            $request->user()->tokens()->where('id', $tokenId)->delete();
+        // البحث عن التوكن لمعرفة مالكه واسم الجهاز المرتبط به
+        $token = \Laravel\Sanctum\PersonalAccessToken::find($tokenId);
+        if (!$token) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الجلسة المطلوبة غير موجودة أو تم إنهاؤها مسبقاً.'
+            ], 404);
         }
+
+        // التحقق من الصلاحيات: إذا لم يكن SuperAdmin، فيجب أن يملك الجلسة بنفسه
+        if ($request->user()->role?->role_name !== 'SuperAdmin' && $token->tokenable_id !== $request->user()->user_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بإنهاء جلسات هذا المستخدم.'
+            ], 403);
+        }
+
+        // حذف الجلسة المقابلة من جدول user_sessions لتظل قواعد البيانات متزامنة تماماً
+        UserSession::where('user_id', $token->tokenable_id)
+                   ->where('device_name', $token->name)
+                   ->delete();
+
+        // حذف التوكن الفعلي من جدول personal_access_tokens
+        $token->delete();
         
         return response()->json([
             'success' => true, 
             'message' => 'تم إنهاء الجلسة للجهاز المحدد بنجاح.'
         ], 200);
     }
+
 
     // ==========================================
     // تحديث البيانات الشخصية
