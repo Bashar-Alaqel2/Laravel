@@ -32,6 +32,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // تسجيل الخروج
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    // === تحديث الملف الشخصي وتغيير كلمة المرور ===
+    Route::put('/profile/update', [AuthController::class, 'updateProfile']);
+    Route::put('/profile/change-password', [AuthController::class, 'changePassword']);
+
     // === الدفع الإلكتروني Stripe ===
     Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createPaymentIntent']);
     Route::post('/payments/stripe/confirm', [App\Http\Controllers\Api\StripePaymentController::class, 'confirmPayment']);
@@ -59,6 +63,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // === مسارات أوقات الذروة والتسعير (Peak Hours & Pricing) ===
     Route::apiResource('screen-pricing-slots', App\Http\Controllers\Api\ScreenPricingSlotController::class);
+    
+    // === مسارات باقات التكرار (Frequency Packages) ===
+    Route::apiResource('frequency-packages', App\Http\Controllers\Api\FrequencyPackageController::class);
     
     // === مسارات لوحة التحكم (Dashboard) ===
     Route::get('/dashboard/overview', [App\Http\Controllers\Api\DashboardController::class, 'getOverview']);

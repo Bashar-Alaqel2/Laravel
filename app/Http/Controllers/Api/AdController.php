@@ -295,10 +295,14 @@ class AdController extends Controller
                 }
             }
 
+            // جلب مضاعف الباقة للتكرار المختار
+            $package = \App\Models\FrequencyPackage::where('display_interval', $frequency)->first();
+            $packageMultiplier = $package ? (double) $package->price_multiplier : 1.0;
+
             // معادلة احتساب السعر للشاشة الواحدة:
-            // السعر الأساسي * معامل الذروة * عدد الأيام * (التكرار / 10)
-            $screenBasePrice = $basePrice * $multiplier;
-            $screenTotal = $screenBasePrice * $days * ($frequency / 10);
+            // السعر الأساسي * معامل الذروة * مضاعف باقة التكرار * عدد الأيام
+            $screenBasePrice = $basePrice * $multiplier * $packageMultiplier;
+            $screenTotal = $screenBasePrice * $days;
             
             $totalCost += $screenTotal;
 
@@ -306,6 +310,7 @@ class AdController extends Controller
                 'screen_id' => $screenId,
                 'screen_name' => $screen->screen_name,
                 'multiplier' => $multiplier,
+                'package_multiplier' => $packageMultiplier,
                 'screen_total' => round($screenTotal, 2),
             ];
         }

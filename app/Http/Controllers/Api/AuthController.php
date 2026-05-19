@@ -234,21 +234,36 @@ class AuthController extends Controller
     // إدارة الجلسات (Sessions Management)
     // ==========================================
 
-    // جلب كافة الأجهزة (الجلسات) النشطة للمستخدم الحالي
+    // جلب كافة الأجهزة (الجلسات) النشطة للمستخدم الحالي (وللإدارة: كل الجلسات لكل المستخدمين)
     public function getSessions(Request $request)
     {
         $currentToken = $request->user()->currentAccessToken();
         $user = $request->user();
-        $tokens = $user->tokens()->orderBy('last_used_at', 'desc')->get()->map(function ($token) use ($currentToken, $user) {
-            return [
-                'id' => $token->id,
-                'device_name' => $token->name,
-                'user_name' => $user->full_name,
-                'last_used_at' => $token->last_used_at,
-                'created_at' => $token->created_at,
-                'is_current' => $token->id === $currentToken->id,
-            ];
-        });
+
+        if ($user->role?->role_name === 'SuperAdmin') {
+            $tokens = \Laravel\Sanctum\PersonalAccessToken::with('tokenable')->orderBy('last_used_at', 'desc')->get()->map(function ($token) use ($currentToken) {
+                $tokenUser = $token->tokenable;
+                return [
+                    'id' => $token->id,
+                    'device_name' => $token->name,
+                    'user_name' => $tokenUser ? $tokenUser->full_name : 'مستخدم محذوف',
+                    'last_used_at' => $token->last_used_at,
+                    'created_at' => $token->created_at,
+                    'is_current' => $token->id === $currentToken->id,
+                ];
+            });
+        } else {
+            $tokens = $user->tokens()->orderBy('last_used_at', 'desc')->get()->map(function ($token) use ($currentToken, $user) {
+                return [
+                    'id' => $token->id,
+                    'device_name' => $token->name,
+                    'user_name' => $user->full_name,
+                    'last_used_at' => $token->last_used_at,
+                    'created_at' => $token->created_at,
+                    'is_current' => $token->id === $currentToken->id,
+                ];
+            });
+        }
 
         return response()->json([
             'success' => true,
@@ -256,7 +271,7 @@ class AuthController extends Controller
         ], 200);
     }
 
-    // تسجيل الخروج من كافة الأجهزة الأخرى
+    // تسجيل الخروج من كافة الأجهزة الأخرى للمستخدم الحالي
     public function revokeOtherSessions(Request $request)
     {
         $currentTokenId = $request->user()->currentAccessToken()->id;
@@ -280,11 +295,90 @@ class AuthController extends Controller
             ], 400);
         }
 
-        $request->user()->tokens()->where('id', $tokenId)->delete();
+        if ($request->user()->role?->role_name === 'SuperAdmin') {
+            \Laravel\Sanctum\PersonalAccessToken::where('id', $tokenId)->delete();
+        } else {
+            $request->user()->tokens()->where('id', $tokenId)->delete();
+        }
         
         return response()->json([
             'success' => true, 
             'message' => 'تم إنهاء الجلسة للجهاز المحدد بنجاح.'
+        ], 200);
+    }
+
+    // ==========================================
+    // تحديث البيانات الشخصية
+    // ==========================================
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        
+        $validator = Validator::make($request->all(), [
+            'full_name' => 'required|string|max:100',
+            'email'     => 'required|string|email|max:150|unique:users,email,' . $user->user_id . ',user_id',
+            'phone'     => 'required|string|max:20|unique:users,phone,' . $user->user_id . ',user_id',
+        ], [
+            'full_name.required' => 'حقل الاسم بالكامل مطلوب.',
+            'email.required'     => 'يرجى إدخال البريد الإلكتروني.',
+            'email.email'        => 'صيغة البريد الإلكتروني غير صحيحة.',
+            'email.unique'       => 'هذا البريد الإلكتروني مسجل مسبقاً لمستخدم آخر.',
+            'phone.required'     => 'يرجى إدخال رقم الهاتف.',
+            'phone.unique'       => 'رقم الهاتف مسجل مسبقاً لمستخدم آخر.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user->update([
+            'full_name' => $request->full_name,
+            'email'     => $request->email,
+            'phone'     => $request->phone,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تحديث البيانات الشخصية بنجاح.',
+            'user'    => $user->load('role')
+        ], 200);
+    }
+
+    // ==========================================
+    // تغيير كلمة المرور
+    // ==========================================
+    public function changePassword(Request $request)
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required|string',
+            'new_password'     => 'required|string|min:6|confirmed',
+        ], [
+            'current_password.required' => 'كلمة المرور الحالية مطلوبة.',
+            'new_password.required'     => 'كلمة المرور الجديدة مطلوبة.',
+            'new_password.min'          => 'يجب ألا تقل كلمة المرور الجديدة عن 6 أحرف.',
+            'new_password.confirmed'    => 'تأكيد كلمة المرور الجديدة غير متطابق.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        if (!Hash::check($request->current_password, $user->password_hash)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'كلمة المرور الحالية غير صحيحة.'
+            ], 400);
+        }
+
+        $user->update([
+            'password_hash' => Hash::make($request->new_password)
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تغيير كلمة المرور بنجاح.'
         ], 200);
     }
 }
