@@ -34,8 +34,18 @@ class ScreenController extends Controller
             'photo'       => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // الصورة إجبارية
         ]);
 
+        // التحقق من المعرف المدخل وتنسيقه (دعم مع أو بدون بادئة SB-)
+        $macAddress = strtoupper(trim($request->mac_address));
+        $possibleMacs = [$macAddress];
+        
+        if (str_starts_with($macAddress, 'SB-')) {
+            $possibleMacs[] = str_replace('SB-', '', $macAddress);
+        } else {
+            $possibleMacs[] = 'SB-' . $macAddress;
+        }
+
         // التحقق من أن المعرف قد تم توليده مسبقاً من السيرفر وهو قيد التفعيل
-        $screen = Screen::where('mac_address', $request->mac_address)
+        $screen = Screen::whereIn('mac_address', $possibleMacs)
                         ->where('status', 'pending_activation')
                         ->first();
 
