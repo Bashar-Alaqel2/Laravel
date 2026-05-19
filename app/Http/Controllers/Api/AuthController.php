@@ -93,14 +93,15 @@ class AuthController extends Controller
         // 3. التحقق من أن الحساب غير موقوف
         if ($user->account_status !== 'Active') {
             return response()->json(['message' => 'هذا الحساب موقوف، يرجى التواصل مع الإدارة.'], 403);
-        }
-
-        // 4. توليد مفتاح الأمان (Token) 
+        }        // 4. توليد مفتاح الأمان (Token) 
         $deviceName = $request->device_name ?? 'Unknown Device';
-        $token = $user->createToken($deviceName)->plainTextToken;
+        $tokenResult = $user->createToken($deviceName);
+        $token = $tokenResult->plainTextToken;
+        $tokenId = $tokenResult->accessToken->id;
 
         // 5. حفظ بيانات الجلسة في جدول user_sessions الذي صممه زيد
-        $deviceId = $request->device_id ?? uniqid('dev_');
+        // نستخدم ID التوكن الفعلي كـ device_id لضمان مطابقة فريدة ومثالية 100% بين الجدولين
+        $deviceId = 'token_' . $tokenId;
         
         UserSession::updateOrCreate(
             ['user_id' => $user->user_id, 'device_id' => $deviceId],
@@ -128,12 +129,12 @@ class AuthController extends Controller
         $token = $user->currentAccessToken();
         
         if ($token) {
-            // Delete from user_sessions table as well to sync databases
+            // حذف الجلسة المطابقة تماماً برقم التوكن الفريد من جدول user_sessions
             UserSession::where('user_id', $user->user_id)
-                       ->where('device_name', $token->name)
+                       ->where('device_id', 'token_' . $token->id)
                        ->delete();
                        
-            // Delete the Sanctum token
+            // حذف التوكن الفعلي
             $token->delete();
         }
 
@@ -278,8 +279,7 @@ class AuthController extends Controller
             'success' => true,
             'data' => $tokens
         ], 200);
-    }
-    // تسجيل الخروج من كافة الأجهزة الأخرى للمستخدم الحالي (أو كافة الأجهزة في النظام للمدير العام)
+    }    // تسجيل الخروج من كافة الأجهزة الأخرى للمستخدم الحالي (أو كافة الأجهزة في النظام للمدير العام)
     public function revokeOtherSessions(Request $request)
     {
         $user = $request->user();
@@ -287,20 +287,15 @@ class AuthController extends Controller
         $currentTokenId = $currentToken->id;
         
         if ($user->role?->role_name === 'SuperAdmin') {
-            // حذف الجلسات من جدول user_sessions لكافة المستخدمين والأجهزة الأخرى
-            UserSession::where('user_id', '!=', $user->user_id)
-                       ->orWhere(function($query) use ($currentToken, $user) {
-                           $query->where('user_id', $user->user_id)
-                                 ->where('device_name', '!=', $currentToken->name);
-                       })
-                       ->delete();
+            // حذف الجلسات من جدول user_sessions لكافة المستخدمين والأجهزة الأخرى برقم التوكن الفريد
+            UserSession::where('device_id', '!=', 'token_' . $currentTokenId)->delete();
 
             // حذف التوكنات للأجهزة الأخرى في النظام بالكامل
             \Laravel\Sanctum\PersonalAccessToken::where('id', '!=', $currentTokenId)->delete();
         } else {
-            // حذف الجلسات من جدول user_sessions للأجهزة الأخرى الخاصة بالمستخدم الحالي فقط
+            // حذف الجلسات من جدول user_sessions للأجهزة الأخرى الخاصة بالمستخدم الحالي فقط برقم التوكن الفريد
             UserSession::where('user_id', $user->user_id)
-                       ->where('device_name', '!=', $currentToken->name)
+                       ->where('device_id', '!=', 'token_' . $currentTokenId)
                        ->delete();
 
             // حذف التوكنات للأجهزة الأخرى الخاصة بالمستخدم الحالي
@@ -343,9 +338,9 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // حذف الجلسة المقابلة من جدول user_sessions لتظل قواعد البيانات متزامنة تماماً
+        // حذف الجلسة المقابلة تماماً برقم التوكن الفريد من جدول user_sessions
         UserSession::where('user_id', $token->tokenable_id)
-                   ->where('device_name', $token->name)
+                   ->where('device_id', 'token_' . $token->id)
                    ->delete();
 
         // حذف التوكن الفعلي من جدول personal_access_tokens
