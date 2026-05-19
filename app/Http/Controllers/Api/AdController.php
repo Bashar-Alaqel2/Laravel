@@ -152,9 +152,13 @@ class AdController extends Controller
                 'is_active'         => true,
             ]);
 
-            // تسجيل إيصال الدفع إن وجد
+            // تسجيل إيصال الدفع إن وجد وتحويله إلى Base64 لتخزينه في قاعدة البيانات
             if ($request->hasFile('receipt')) {
-                $receiptPath = $request->file('receipt')->store('receipts', 'public');
+                $file = $request->file('receipt');
+                $base64 = base64_encode(file_get_contents($file->getRealPath()));
+                $mime = $file->getClientMimeType();
+                $receiptData = "data:{$mime};base64,{$base64}";
+
                 \App\Models\FinancialLedger::create([
                     'advertisement_id' => $ad->ad_id,
                     'user_id'          => $ad->advertiser_id ?? $request->user()->user_id,
@@ -162,7 +166,7 @@ class AdController extends Controller
                     'amount'           => $ad->total_cost,
                     'status'           => 'pending',
                     'notes'            => "إيصال دفع مرفق عند إنشاء الإعلان: {$ad->title}",
-                    'receipt_path'     => '/storage/' . $receiptPath,
+                    'receipt_path'     => $receiptData,
                 ]);
             }
 

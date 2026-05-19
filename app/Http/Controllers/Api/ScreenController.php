@@ -46,10 +46,13 @@ class ScreenController extends Controller
             ], 422);
         }
 
-        // معالجة رفع الصورة
+        // معالجة رفع الصورة وتحويلها إلى Base64 لتخزينها في قاعدة البيانات مباشرة
         $imagePath = null;
         if ($request->hasFile('photo')) {
-            $imagePath = $request->file('photo')->store('screens', 'public');
+            $file = $request->file('photo');
+            $base64 = base64_encode(file_get_contents($file->getRealPath()));
+            $mime = $file->getClientMimeType();
+            $imagePath = "data:{$mime};base64,{$base64}";
         }
 
         // تحديث السجل المؤقت وتفعيله
