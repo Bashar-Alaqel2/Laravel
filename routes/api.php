@@ -8,6 +8,9 @@ use App\Http\Controllers\Api\ScreenController;
 // مسارات مفتوحة (لا تحتاج تسجيل دخول)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/login', function() {
+    return response()->json(['success' => false, 'message' => 'Unauthenticated or Redirected.'], 401);
+})->name('login');
 
 // مسار ربط الشاشات الفيزيائية
 Route::post('/screens/link', [ScreenController::class, 'linkScreen']);
