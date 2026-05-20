@@ -56,6 +56,9 @@ if ($_SERVER['REQUEST_URI'] === '/api/debug') {
     exit;
 }
 
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+
 putenv('LOG_CHANNEL=stderr'); // Send logs directly to Vercel logs dashboard
 
 // Forward Vercel request to Laravel public/index.php
