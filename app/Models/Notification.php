@@ -8,6 +8,10 @@ class Notification extends Model {
     public const UPDATED_AT = null;
     protected $fillable = ['user_id', 'title', 'message', 'is_read'];
 
+    protected $casts = [
+        'is_read' => 'boolean',
+    ];
+
     public function user() {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
