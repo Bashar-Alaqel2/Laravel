@@ -9,8 +9,21 @@ foreach ($folders as $folder) {
     }
 }
 
-// Modify Laravel compilation path to write into /tmp
-putenv('VIEW_COMPILED_PATH=/tmp/storage/framework/views');
+// Modify Laravel compilation and cache paths to write into /tmp
+$caches = [
+    'APP_CONFIG_CACHE' => '/tmp/config.php',
+    'APP_EVENTS_CACHE' => '/tmp/events.php',
+    'APP_PACKAGES_CACHE' => '/tmp/packages.php',
+    'APP_ROUTES_CACHE' => '/tmp/routes.php',
+    'APP_SERVICES_CACHE' => '/tmp/services.php',
+    'VIEW_COMPILED_PATH' => '/tmp/storage/framework/views'
+];
+foreach ($caches as $key => $val) {
+    putenv("$key=$val");
+    $_ENV[$key] = $val;
+    $_SERVER[$key] = $val;
+}
+
 putenv('LOG_CHANNEL=stderr'); // Send logs directly to Vercel logs dashboard
 
 // Forward Vercel request to Laravel public/index.php
