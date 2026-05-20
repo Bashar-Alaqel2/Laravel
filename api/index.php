@@ -39,6 +39,23 @@ if (str_starts_with($_SERVER['REQUEST_URI'], '/api/debug2')) {
     exit;
 }
 
+if ($_SERVER['REQUEST_URI'] === '/api/debug') {
+    require __DIR__ . '/../vendor/autoload.php';
+    $app = require_once __DIR__.'/../bootstrap/app.php';
+    $request = Illuminate\Http\Request::capture();
+    header('Content-Type: application/json');
+    echo json_encode([
+        'path' => $request->path(),
+        'decodedPath' => $request->decodedPath(),
+        'url' => $request->url(),
+        'fullUrl' => $request->fullUrl(),
+        'baseUrl' => $request->getBaseUrl(),
+        'basePath' => $request->getBasePath(),
+        'pathInfo' => $request->getPathInfo(),
+    ]);
+    exit;
+}
+
 putenv('LOG_CHANNEL=stderr'); // Send logs directly to Vercel logs dashboard
 
 // Forward Vercel request to Laravel public/index.php
