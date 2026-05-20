@@ -6,8 +6,14 @@ $_SERVER['SCRIPT_NAME'] = '/index.php';
 $_SERVER['PHP_SELF'] = '/index.php';
 
 // Vercel serverless environment does not allow writing to storage, so we point them to /tmp
-$storagePath = '/tmp/storage/framework';
-$folders = ['/views', '/sessions', '/cache'];
+$storagePath = '/tmp/storage';
+$folders = [
+    '/app',
+    '/framework/cache/data',
+    '/framework/sessions',
+    '/framework/views',
+    '/logs'
+];
 foreach ($folders as $folder) {
     if (!is_dir($storagePath . $folder)) {
         mkdir($storagePath . $folder, 0755, true);
@@ -36,6 +42,7 @@ require __DIR__ . '/../vendor/autoload.php';
 // Bootstrap Laravel Application
 /** @var Illuminate\Foundation\Application $app */
 $app = require_once __DIR__.'/../bootstrap/app.php';
+$app->useStoragePath($storagePath);
 
 // Capture the Request
 $request = Illuminate\Http\Request::capture();
