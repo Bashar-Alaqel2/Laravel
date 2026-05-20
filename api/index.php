@@ -21,45 +21,24 @@ foreach ($caches as $key => $val) {
     $_SERVER[$key] = $val;
 }
 
-if ($_SERVER['REQUEST_URI'] === '/api/test2') {
-    header('Content-Type: application/json');
-    echo json_encode(['message' => 'Hit api/index.php directly!', 'uri' => $_SERVER['REQUEST_URI']]);
-    exit;
-}
-
-if (str_starts_with($_SERVER['REQUEST_URI'], '/api/debug2')) {
-    header('Content-Type: application/json');
-    echo json_encode([
-        'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? null,
-        'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'] ?? null,
-        'PHP_SELF' => $_SERVER['PHP_SELF'] ?? null,
-        'PATH_INFO' => $_SERVER['PATH_INFO'] ?? null,
-        'QUERY_STRING' => $_SERVER['QUERY_STRING'] ?? null,
-    ]);
-    exit;
-}
-
-if ($_SERVER['REQUEST_URI'] === '/api/debug') {
-    require __DIR__ . '/../vendor/autoload.php';
-    $app = require_once __DIR__.'/../bootstrap/app.php';
-    $request = Illuminate\Http\Request::capture();
-    header('Content-Type: application/json');
-    echo json_encode([
-        'path' => $request->path(),
-        'decodedPath' => $request->decodedPath(),
-        'url' => $request->url(),
-        'fullUrl' => $request->fullUrl(),
-        'baseUrl' => $request->getBaseUrl(),
-        'basePath' => $request->getBasePath(),
-        'pathInfo' => $request->getPathInfo(),
-    ]);
-    exit;
-}
-
-$_SERVER['SCRIPT_NAME'] = '/index.php';
-$_SERVER['PHP_SELF'] = '/index.php';
-
 putenv('LOG_CHANNEL=stderr'); // Send logs directly to Vercel logs dashboard
 
-// Forward Vercel request to Laravel public/index.php
-require __DIR__ . '/../public/index.php';
+define('LARAVEL_START', microtime(true));
+
+// Register Composer Autoloader
+require __DIR__ . '/../vendor/autoload.php';
+
+// Bootstrap Laravel Application
+/** @var Illuminate\Foundation\Application $app */
+$app = require_once __DIR__.'/../bootstrap/app.php';
+
+// Capture the Request
+$request = Illuminate\Http\Request::capture();
+
+// On Vercel, the base URL is mistakenly identified as '/api' due to routing to api/index.php.
+// We override base URL and path to empty string so Laravel correctly routes `/api/...` endpoints.
+$request->setBaseUrl('');
+$request->setBasePath('');
+
+// Handle and send response
+$app->handleRequest($request);
