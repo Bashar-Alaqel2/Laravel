@@ -171,33 +171,35 @@ class AdController extends Controller
             }
 
             // إرسال إشعارات
-            $advertiser = $ad->advertiser ?? $request->user();
-            \App\Models\Notification::create([
-                'user_id' => $ad->advertiser_id,
-                'title' => 'حملة إعلانية جديدة 📢',
-                'message' => "تم رفع حملتك الإعلانية '{$ad->title}' بنجاح وهي الآن " . ($request->hasFile('receipt') ? "بانتظار المراجعة الفنية والمالية." : "بانتظار إتمام عملية الدفع."),
-                'is_read' => 'false',
-            ]);
-
-            $admins = \App\Models\User::whereHas('role', function($q) {
-                $q->whereIn('role_name', ['Admin', 'Secretary']);
-            })->get();
-
-            foreach ($admins as $admin) {
+            if ($initialStatus === 'Pending') {
+                $advertiser = $ad->advertiser ?? $request->user();
                 \App\Models\Notification::create([
-                    'user_id' => $admin->user_id,
-                    'title' => 'حملة جديدة بانتظار المراجعة 📢',
-                    'message' => "قام المعلن '{$advertiser->full_name}' برفع حملة جديدة '{$ad->title}' (بانتظار المراجعة).",
+                    'user_id' => $ad->advertiser_id,
+                    'title' => json_encode(['key' => 'notif_title_new_ad_pending']),
+                    'message' => json_encode(['key' => 'notif_msg_new_ad_pending', 'args' => ['title' => $ad->title]]),
                     'is_read' => 'false',
                 ]);
 
-                if ($request->hasFile('receipt')) {
+                $admins = \App\Models\User::whereHas('role', function($q) {
+                    $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
+                })->get();
+
+                foreach ($admins as $admin) {
                     \App\Models\Notification::create([
                         'user_id' => $admin->user_id,
-                        'title' => 'إيصال دفع جديد بانتظار الاعتماد 💳',
-                        'message' => "تم رفع إيصال دفع حوالة بنكية بقيمة '\${$ad->total_cost}' من '{$advertiser->full_name}' (بانتظار الاعتماد).",
+                        'title' => json_encode(['key' => 'notif_title_ad_pending_review']),
+                        'message' => json_encode(['key' => 'notif_msg_ad_pending_review', 'args' => ['advertiser' => $advertiser->full_name, 'title' => $ad->title]]),
                         'is_read' => 'false',
                     ]);
+
+                    if ($request->hasFile('receipt')) {
+                        \App\Models\Notification::create([
+                            'user_id' => $admin->user_id,
+                            'title' => json_encode(['key' => 'notif_title_new_receipt']),
+                            'message' => json_encode(['key' => 'notif_msg_new_receipt', 'args' => ['cost' => $ad->total_cost, 'advertiser' => $advertiser->full_name]]),
+                            'is_read' => 'false',
+                        ]);
+                    }
                 }
             }
 
@@ -244,18 +246,19 @@ class AdController extends Controller
         if ($ad->status === 'Active') {
             \App\Models\Notification::create([
                 'user_id' => $ad->advertiser_id,
-                'title' => 'تمت الموافقة على إعلانك! 🎉',
-                'message' => "تمت الموافقة على إعلانك '{$ad->title}'! وهو الآن نشط ويبث على الشاشات.",
+                'title' => json_encode(['key' => 'notif_title_ad_approved']),
+                'message' => json_encode(['key' => 'notif_msg_ad_approved', 'args' => ['title' => $ad->title]]),
                 'is_read' => 'false',
             ]);
 
             // إرسال إشعار لملاك الشاشات المرتبطة بالإعلان
+            $schedule = $ad->schedules()->first();
             foreach ($ad->screens as $screen) {
                 if ($screen->owner_id) {
                     \App\Models\Notification::create([
                         'user_id' => $screen->owner_id,
-                        'title' => 'حملة إعلانية جديدة لشاشتك 🖥️',
-                        'message' => "تمت جدولة إعلان جديد '{$ad->title}' على شاشتك '{$screen->screen_name}' (تبدأ من {$ad->start_date}).",
+                        'title' => json_encode(['key' => 'notif_title_ad_scheduled']),
+                        'message' => json_encode(['key' => 'notif_msg_ad_scheduled', 'args' => ['title' => $ad->title, 'screen' => $screen->screen_name, 'start' => $schedule->start_date]]),
                         'is_read' => 'false',
                     ]);
                 }
@@ -263,8 +266,8 @@ class AdController extends Controller
         } elseif ($ad->status === 'Rejected') {
             \App\Models\Notification::create([
                 'user_id' => $ad->advertiser_id,
-                'title' => 'تم رفض الإعلان لمخالفته السياسات ⚠️',
-                'message' => "تم رفض الإعلان '{$ad->title}' لمخالفته السياسات، السبب: " . ($request->reason ?? 'يرجى مراجعة التفاصيل.') . " يرجى التعديل.",
+                'title' => json_encode(['key' => 'notif_title_ad_rejected']),
+                'message' => json_encode(['key' => 'notif_msg_ad_rejected', 'args' => ['title' => $ad->title, 'reason' => $ad->rejection_reason]]),
                 'is_read' => 'false',
             ]);
         }

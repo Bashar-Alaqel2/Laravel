@@ -4,8 +4,10 @@ $app = require_once 'bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
-$count = \App\Models\User::whereHas('role', function($q) {
+$admins = \App\Models\User::whereHas('role', function($q) {
     $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
-})->count();
+})->get();
 
-echo "Admins count: " . $count . "\n";
+foreach ($admins as $admin) {
+    echo "Admin ID: " . $admin->user_id . " Name: " . $admin->full_name . " Role: " . $admin->role->role_name . "\n";
+}

@@ -87,6 +87,28 @@ class StripePaymentController extends Controller
                 'status' => 'pending' // ينتقل للمراجعة بعد الدفع
             ]);
 
+            // إرسال إشعار للمعلن
+            \App\Models\Notification::create([
+                'user_id' => $ad->advertiser_id,
+                'title' => json_encode(['key' => 'notif_title_payment_confirmed']),
+                'message' => json_encode(['key' => 'notif_msg_payment_confirmed', 'args' => ['amount' => $ledger->amount, 'title' => $ad->title]]),
+                'is_read' => 'false',
+            ]);
+
+            // إرسال إشعار للإدارة
+            $admins = \App\Models\User::whereHas('role', function($q) {
+                $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
+            })->get();
+
+            foreach ($admins as $admin) {
+                \App\Models\Notification::create([
+                    'user_id' => $admin->user_id,
+                    'title' => json_encode(['key' => 'notif_title_ad_paid_online']),
+                    'message' => json_encode(['key' => 'notif_msg_ad_paid_online', 'args' => ['title' => $ad->title]]),
+                    'is_read' => 'false',
+                ]);
+            }
+
             // توزيع الأرباح على ملاك الشاشات
             app(\App\Http\Controllers\Api\FinancialController::class)->distributeEarnings($ad, $ad->total_cost);
 

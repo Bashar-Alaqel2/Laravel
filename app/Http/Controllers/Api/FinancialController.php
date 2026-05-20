@@ -201,8 +201,8 @@ class FinancialController extends Controller
                     // إرسال إشعار للمعلن
                     \App\Models\Notification::create([
                         'user_id' => $ad->advertiser_id,
-                        'title' => 'تم تأكيد الدفع بنجاح! 💳',
-                        'message' => "تم تأكيد الدفع بنجاح لقيمة '\${$ledger->amount}' للحملة '{$ad->title}'. إعلانك الآن قيد المراجعة الفنية.",
+                        'title' => json_encode(['key' => 'notif_title_payment_confirmed']),
+                        'message' => json_encode(['key' => 'notif_msg_payment_confirmed', 'args' => ['amount' => $ledger->amount, 'title' => $ad->title]]),
                         'is_read' => 'false',
                     ]);
 

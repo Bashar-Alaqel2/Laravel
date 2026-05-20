@@ -85,6 +85,19 @@ class ScreenController extends Controller
             'linked_at'   => now(),
         ]);
 
+        // إرسال إشعار للمديرين
+        $admins = \App\Models\User::whereHas('role', function($q) {
+            $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
+        })->get();
+        foreach ($admins as $admin) {
+            \App\Models\Notification::create([
+                'user_id' => $admin->user_id,
+                'title' => json_encode(['key' => 'notif_title_new_screen']),
+                'message' => json_encode(['key' => 'notif_msg_new_screen', 'args' => ['name' => $screen->screen_name]]),
+                'is_read' => 'false',
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'تم تفعيل وإضافة الشاشة بنجاح وربطها بالمعرف المولد من السيرفر',

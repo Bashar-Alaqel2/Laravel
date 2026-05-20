@@ -59,6 +59,19 @@ class AuthController extends Controller
             'account_status'=> 'Active'
         ]);
 
+        // إرسال إشعار للمديرين
+        $admins = User::whereHas('role', function($q) {
+            $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
+        })->get();
+        foreach ($admins as $admin) {
+            \App\Models\Notification::create([
+                'user_id' => $admin->user_id,
+                'title' => json_encode(['key' => 'notif_title_new_user']),
+                'message' => json_encode(['key' => 'notif_msg_new_user', 'args' => ['name' => $user->full_name]]),
+                'is_read' => 'false',
+            ]);
+        }
+
         return response()->json([
             'message' => 'تم إنشاء الحساب بنجاح، يمكنك الآن تسجيل الدخول.',
             'user'    => $user
