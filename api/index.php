@@ -1,5 +1,10 @@
 <?php
 
+// Override script name and php self to prevent Laravel from incorrectly extracting '/api' as the base URL.
+// This ensures that Laravel routes starting with '/api/...' match correctly.
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+
 // Vercel serverless environment does not allow writing to storage, so we point them to /tmp
 $storagePath = '/tmp/storage/framework';
 $folders = ['/views', '/sessions', '/cache'];
@@ -34,11 +39,6 @@ $app = require_once __DIR__.'/../bootstrap/app.php';
 
 // Capture the Request
 $request = Illuminate\Http\Request::capture();
-
-// On Vercel, the base URL is mistakenly identified as '/api' due to routing to api/index.php.
-// We override base URL and path to empty string so Laravel correctly routes `/api/...` endpoints.
-$request->setBaseUrl('');
-$request->setBasePath('');
 
 // Handle and send response
 $app->handleRequest($request);
