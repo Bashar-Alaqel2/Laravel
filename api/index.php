@@ -11,10 +11,7 @@ foreach ($folders as $folder) {
 
 // Modify Laravel compilation and cache paths to write into /tmp
 $caches = [
-    'APP_CONFIG_CACHE' => '/tmp/config.php',
-    'APP_EVENTS_CACHE' => '/tmp/events.php',
     'APP_PACKAGES_CACHE' => '/tmp/packages.php',
-    'APP_ROUTES_CACHE' => '/tmp/routes.php',
     'APP_SERVICES_CACHE' => '/tmp/services.php',
     'VIEW_COMPILED_PATH' => '/tmp/storage/framework/views'
 ];
@@ -22,6 +19,12 @@ foreach ($caches as $key => $val) {
     putenv("$key=$val");
     $_ENV[$key] = $val;
     $_SERVER[$key] = $val;
+}
+
+if ($_SERVER['REQUEST_URI'] === '/api/test2') {
+    header('Content-Type: application/json');
+    echo json_encode(['message' => 'Hit api/index.php directly!', 'uri' => $_SERVER['REQUEST_URI']]);
+    exit;
 }
 
 putenv('LOG_CHANNEL=stderr'); // Send logs directly to Vercel logs dashboard

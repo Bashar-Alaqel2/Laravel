@@ -11,6 +11,17 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/login', function() {
     return response()->json(['success' => false, 'message' => 'Unauthenticated or Redirected.'], 401);
 })->name('login');
+Route::get('/test', function() {
+    return response()->json(['success' => true, 'message' => 'API is working! v2']);
+});
+Route::any('/debug', function (\Illuminate\Http\Request $request) {
+    return response()->json([
+        'uri' => $request->getRequestUri(),
+        'path' => $request->path(),
+        'method' => $request->method(),
+        'server' => $_SERVER,
+    ]);
+});
 
 // مسار ربط الشاشات الفيزيائية
 Route::post('/screens/link', [ScreenController::class, 'linkScreen']);
