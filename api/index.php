@@ -27,6 +27,18 @@ if ($_SERVER['REQUEST_URI'] === '/api/test2') {
     exit;
 }
 
+if (str_starts_with($_SERVER['REQUEST_URI'], '/api/debug2')) {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? null,
+        'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'] ?? null,
+        'PHP_SELF' => $_SERVER['PHP_SELF'] ?? null,
+        'PATH_INFO' => $_SERVER['PATH_INFO'] ?? null,
+        'QUERY_STRING' => $_SERVER['QUERY_STRING'] ?? null,
+    ]);
+    exit;
+}
+
 putenv('LOG_CHANNEL=stderr'); // Send logs directly to Vercel logs dashboard
 
 // Forward Vercel request to Laravel public/index.php
