@@ -149,7 +149,7 @@ class AdController extends Controller
                 'end_time'          => $request->target_end_time,
                 'interval_minutes'  => $request->interval_minutes,
                 'allocated_seconds' => $allocatedSeconds,
-                'is_active'         => true,
+                'is_active' => 'true',
             ]);
 
             // تسجيل إيصال الدفع إن وجد وتحويله إلى Base64 لتخزينه في قاعدة البيانات
@@ -176,7 +176,7 @@ class AdController extends Controller
                 'user_id' => $ad->advertiser_id,
                 'title' => 'حملة إعلانية جديدة 📢',
                 'message' => "تم رفع حملتك الإعلانية '{$ad->title}' بنجاح وهي الآن " . ($request->hasFile('receipt') ? "بانتظار المراجعة الفنية والمالية." : "بانتظار إتمام عملية الدفع."),
-                'is_read' => false,
+                'is_read' => 'false',
             ]);
 
             $admins = \App\Models\User::whereHas('role', function($q) {
@@ -188,7 +188,7 @@ class AdController extends Controller
                     'user_id' => $admin->user_id,
                     'title' => 'حملة جديدة بانتظار المراجعة 📢',
                     'message' => "قام المعلن '{$advertiser->full_name}' برفع حملة جديدة '{$ad->title}' (بانتظار المراجعة).",
-                    'is_read' => false,
+                    'is_read' => 'false',
                 ]);
 
                 if ($request->hasFile('receipt')) {
@@ -196,7 +196,7 @@ class AdController extends Controller
                         'user_id' => $admin->user_id,
                         'title' => 'إيصال دفع جديد بانتظار الاعتماد 💳',
                         'message' => "تم رفع إيصال دفع حوالة بنكية بقيمة '\${$ad->total_cost}' من '{$advertiser->full_name}' (بانتظار الاعتماد).",
-                        'is_read' => false,
+                        'is_read' => 'false',
                     ]);
                 }
             }
@@ -246,7 +246,7 @@ class AdController extends Controller
                 'user_id' => $ad->advertiser_id,
                 'title' => 'تمت الموافقة على إعلانك! 🎉',
                 'message' => "تمت الموافقة على إعلانك '{$ad->title}'! وهو الآن نشط ويبث على الشاشات.",
-                'is_read' => false,
+                'is_read' => 'false',
             ]);
 
             // إرسال إشعار لملاك الشاشات المرتبطة بالإعلان
@@ -256,7 +256,7 @@ class AdController extends Controller
                         'user_id' => $screen->owner_id,
                         'title' => 'حملة إعلانية جديدة لشاشتك 🖥️',
                         'message' => "تمت جدولة إعلان جديد '{$ad->title}' على شاشتك '{$screen->screen_name}' (تبدأ من {$ad->start_date}).",
-                        'is_read' => false,
+                        'is_read' => 'false',
                     ]);
                 }
             }
@@ -265,7 +265,7 @@ class AdController extends Controller
                 'user_id' => $ad->advertiser_id,
                 'title' => 'تم رفض الإعلان لمخالفته السياسات ⚠️',
                 'message' => "تم رفض الإعلان '{$ad->title}' لمخالفته السياسات، السبب: " . ($request->reason ?? 'يرجى مراجعة التفاصيل.') . " يرجى التعديل.",
-                'is_read' => false,
+                'is_read' => 'false',
             ]);
         }
 

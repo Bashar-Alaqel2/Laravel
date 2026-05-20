@@ -203,7 +203,7 @@ class FinancialController extends Controller
                         'user_id' => $ad->advertiser_id,
                         'title' => 'تم تأكيد الدفع بنجاح! 💳',
                         'message' => "تم تأكيد الدفع بنجاح لقيمة '\${$ledger->amount}' للحملة '{$ad->title}'. إعلانك الآن قيد المراجعة الفنية.",
-                        'is_read' => false,
+                        'is_read' => 'false',
                     ]);
 
                     // 3. توزيع الأرباح
