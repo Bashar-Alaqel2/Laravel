@@ -40,13 +40,7 @@ class PlaylistController extends Controller
             ->whereHas('schedules', function ($q) use ($nowDate, $nowTime) {
                 $q->where('is_active', 'true')
                   ->where('start_date', '<=', $nowDate)
-                  ->where('end_date', '>=', $nowDate)
-                  ->where(function ($query) use ($nowTime) {
-                      $query->where(function($qTime) use ($nowTime) {
-                          $qTime->where('start_time', '<=', $nowTime)
-                                ->where('end_time', '>', $nowTime);
-                      })->orWhereNull('start_time'); // يشمل الإعلانات المفتوحة طوال اليوم
-                  });
+                  ->where('end_date', '>=', $nowDate);
             })
             ->with(['schedules' => function($q) use ($nowDate, $nowTime) {
                 // جلب الجدولة المطابقة لمعرفة خصائصها
