@@ -303,6 +303,32 @@ class ScreenController extends Controller
     }
 
     // ==========================================
+    // 7. إرسال أمر تحكم للشاشة (Remote Command)
+    // ==========================================
+    public function sendCommand(Request $request)
+    {
+        // التحقق من الصلاحيات (يجب أن يكون Admin أو Owner للشاشة)
+        // إذا كان التطبيق يعتمد على الـ token، يجب وضع هذا المسار داخل مجموعة auth:sanctum
+        
+        $request->validate([
+            'target_screen' => 'required|string', // "all" أو الـ mac_address
+            'command'       => 'required|string', // RESTART_APP, SLEEP_SCREEN, WAKE_SCREEN, إلخ
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('screen_commands')->insert([
+            'target_screen' => $request->target_screen,
+            'command'       => $request->command,
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم إرسال الأمر للشاشة بنجاح وسيتم تنفيذه لحظياً'
+        ], 200);
+    }
+
+    // ==========================================
     // 7.5 توليد معرف فريد جديد لشاشة (من تطبيق التلفاز)
     // ==========================================
     public function generateId(Request $request)

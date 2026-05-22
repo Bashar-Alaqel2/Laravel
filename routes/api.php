@@ -55,6 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/users/{id}', [AuthController::class, 'destroyUser']);
     
     // === مسارات الشاشات (للوحة التحكم ولتطبيق Flutter) ===
+    Route::post('/screens/command', [App\Http\Controllers\Api\ScreenController::class, 'sendCommand']);
     Route::get('/screens/{id}/availability', [App\Http\Controllers\Api\ScreenController::class, 'getAvailability']);
     Route::apiResource('screens', App\Http\Controllers\Api\ScreenController::class); // تنشئ مسارات: index, store, show, update, destroy
     // === مسارات الإعلانات ===
