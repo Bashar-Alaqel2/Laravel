@@ -49,7 +49,7 @@ class Screen extends Model {
     }
 
     public function advertisements() {
-        return $this->belongsToMany(Advertisement::class, 'ad_screens', 'screen_id', 'ad_id')
+        return $this->belongsToMany(Advertisement::class, 'advertisement_screen', 'screen_id', 'ad_id')
                     ->withPivot('price');
     }
 
