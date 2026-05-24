@@ -53,7 +53,8 @@ class AdController extends Controller
             'advertiser_id'     => 'nullable|exists:users,user_id', // إذا لم يرسل، نستخدم الحالي
             'category_id'       => 'nullable|exists:categories,category_id',
             'duration'          => 'required|integer|min:1', 
-            'file'              => 'required|file|mimes:mp4,mov,avi,jpeg,png,jpg|max:51200', 
+            'file_url'          => 'required|url', 
+            'file_size'         => 'required|numeric', // in MB
             'start_date'        => 'required|date',
             'end_date'          => 'required|date|after_or_equal:start_date',
             'target_start_time' => 'nullable|date_format:H:i', // جديد: استهداف وقت محدد
@@ -63,7 +64,7 @@ class AdController extends Controller
             'package_name'      => 'nullable|string',
             'screen_ids'        => 'required|array',
             'screen_ids.*'      => 'exists:screens,screen_id',
-            'receipt'           => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120', // 5MB max
+            'receipt_url'       => 'nullable|url',
         ]);
 
         if ($validator->fails()) {
@@ -114,21 +115,16 @@ class AdController extends Controller
                 }
             }
 
-            // حفظ الملف
-            $file = $request->file('file');
-            $path = $file->store('ads', 'public');
-            $sizeInMB = $file->getSize() / 1048576;
-
             // تحديد الحالة الأولية
-            $initialStatus = $request->hasFile('receipt') ? 'Pending' : 'waiting_payment';
+            $initialStatus = $request->filled('receipt_url') ? 'Pending' : 'waiting_payment';
 
             $ad = Advertisement::create([
                 'advertiser_id'   => $request->advertiser_id ?? $request->user()->user_id,
                 'category_id'     => $request->category_id,
                 'title'           => $request->title,
-                'file_path'       => '/storage/' . $path,
+                'file_path'       => $request->file_url,
                 'duration'        => $duration,
-                'file_size'       => round($sizeInMB, 2),
+                'file_size'       => $request->file_size,
                 'start_date'      => $request->start_date,
                 'end_date'        => $request->end_date,
                 'daily_frequency' => $request->interval_minutes, // استخدمنا الحقل كمتغير مؤقت
