@@ -1,5 +1,14 @@
 <?php
 
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-CSRF-Token, Accept");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 // Override script name and php self to prevent Laravel from incorrectly extracting '/api' as the base URL.
 // This ensures that Laravel routes starting with '/api/...' match correctly.
 $_SERVER['SCRIPT_NAME'] = '/index.php';
