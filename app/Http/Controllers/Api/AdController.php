@@ -299,13 +299,13 @@ class AdController extends Controller
     }
 
     // ==========================================
-    // 5. حساب تكلفة الحملة بناءً على الشاشات وأوقات الذروة
+    // محرك التسعير الذكي (Smart Pricing Engine v2)
+    // POST /api/ads/calculate-cost
     // ==========================================
     public function calculateCost(Request $request)
     {
         $request->validate([
-            'category_id'       => 'required|exists:categories,category_id',
-            'screen_ids'        => 'required|array',
+            'screen_ids'        => 'required|array|min:1',
             'screen_ids.*'      => 'exists:screens,screen_id',
             'start_date'        => 'required|date',
             'end_date'          => 'required|date|after_or_equal:start_date',
@@ -314,74 +314,124 @@ class AdController extends Controller
             'interval_minutes'  => 'required|integer|min:1',
         ]);
 
-        $category = \App\Models\Category::findOrFail($request->category_id);
-        $basePrice = (double) $category->price;
-
+        // ── 1. عدد الأيام
         $startDate = new \DateTime($request->start_date);
-        $endDate = new \DateTime($request->end_date);
-        $days = $startDate->diff($endDate)->days + 1;
+        $endDate   = new \DateTime($request->end_date);
+        $days = (int) $startDate->diff($endDate)->days + 1;
 
-        $frequency = (int) $request->interval_minutes;
+        // ── 2. نطاق الوقت المستهدف
+        $reqStartTime = $request->target_start_time ?? '00:00';
+        $reqEndTime   = $request->target_end_time   ?? '23:59';
+        if (strlen($reqStartTime) === 5) $reqStartTime .= ':00';
+        if (strlen($reqEndTime)   === 5) $reqEndTime   .= ':00';
 
-        $reqStartTime = $request->target_start_time ?? '00:00:00';
-        if (strlen($reqStartTime) === 5) {
-            $reqStartTime .= ':00';
+        // ── 3. مضاعف باقة التكرار
+        $frequency         = (int) $request->interval_minutes;
+        $package           = \App\Models\FrequencyPackage::where('display_interval', $frequency)->first();
+        $packageMultiplier = $package ? (double) $package->price_multiplier : 1.0;
+
+        // ── 4. عدد المعلنين المشتركين في نفس الوقت (لكل شاشة)
+        $sharedCountMap = [];
+        foreach ($request->screen_ids as $screenId) {
+            $sharedCount = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
+                    $q->whereNotIn('status', ['Rejected'])->whereNull('deleted_at');
+                })
+                ->whereHas('advertisement.screens', function ($q) use ($screenId) {
+                    $q->where('screens.screen_id', $screenId);
+                })
+                ->where('is_active', 'true')
+                ->where('start_date', '<=', $request->end_date)
+                ->where('end_date',   '>=', $request->start_date)
+                ->where(function ($q) use ($reqStartTime, $reqEndTime) {
+                    $q->where(function ($inner) use ($reqStartTime, $reqEndTime) {
+                        $inner->where('start_time', '<', $reqEndTime)
+                              ->where('end_time',   '>', $reqStartTime);
+                    })->orWhereNull('start_time');
+                })
+                ->count();
+
+            // المعلن الحالي سيُضاف، لذلك نضيف 1
+            $sharedCountMap[$screenId] = $sharedCount + 1;
         }
-        $reqEndTime = $request->target_end_time ?? '23:59:59';
-        if (strlen($reqEndTime) === 5) {
-            $reqEndTime .= ':00';
-        }
 
-        $totalCost = 0.0;
+        // ── 5. حساب التكلفة لكل شاشة
+        $totalCost     = 0.0;
         $screenDetails = [];
 
         foreach ($request->screen_ids as $screenId) {
-            $screen = \App\Models\Screen::find($screenId);
+            $screen = \App\Models\Screen::with('type')->find($screenId);
             if (!$screen) continue;
 
-            // التحقق من تداخل الوقت مع أوقات الذروة لهذه الشاشة
-            $multiplier = 1.0;
+            // أ. السعر الأساسي اليومي من إعدادات الشاشة
+            $basePrice = (double) ($screen->base_price ?? 10.0);
+
+            // ب. مضاعف حجم الشاشة (55"=1.0x | 65"=1.1x | 75"=1.2x | 86"=1.35x | 98+"=1.5x)
+            $sizeInch = (int) ($screen->screen_size_inch ?? 55);
+            $sizeMultiplier = match(true) {
+                $sizeInch >= 98 => 1.5,
+                $sizeInch >= 86 => 1.35,
+                $sizeInch >= 75 => 1.2,
+                $sizeInch >= 65 => 1.1,
+                default         => 1.0,
+            };
+
+            // ج. مضاعف وقت الذروة (Peak Time Multiplier)
+            $peakMultiplier   = 1.0;
             $overlappingSlots = \App\Models\ScreenPricingSlot::where('screen_id', $screenId)
                 ->where(function ($q) use ($reqStartTime, $reqEndTime) {
                     $q->where('start_time', '<', $reqEndTime)
-                      ->where('end_time', '>', $reqStartTime);
-                })
-                ->get();
+                      ->where('end_time',   '>', $reqStartTime);
+                })->get();
 
             foreach ($overlappingSlots as $slot) {
-                if ($slot->price_multiplier > $multiplier) {
-                    $multiplier = (double) $slot->price_multiplier;
+                if ((double) $slot->price_multiplier > $peakMultiplier) {
+                    $peakMultiplier = (double) $slot->price_multiplier;
                 }
             }
 
-            // جلب مضاعف الباقة للتكرار المختار
-            $package = \App\Models\FrequencyPackage::where('display_interval', $frequency)->first();
-            $packageMultiplier = $package ? (double) $package->price_multiplier : 1.0;
+            // د. مضاعف التشارك (1 معلن=1.0x | 2 معلنين=0.65x | 3+=0.5x)
+            $sharedCount = $sharedCountMap[$screenId];
+            $sharingMultiplier = match(true) {
+                $sharedCount >= 3  => 0.50,
+                $sharedCount === 2 => 0.65,
+                default            => 1.0,
+            };
 
-            // معادلة احتساب السعر للشاشة الواحدة:
-            // السعر الأساسي * معامل الذروة * مضاعف باقة التكرار * عدد الأيام
-            $screenBasePrice = $basePrice * $multiplier * $packageMultiplier;
-            $screenTotal = $screenBasePrice * $days;
-            
+            // ── المعادلة النهائية:
+            // السعر الأساسي × حجم الشاشة × وقت الذروة × باقة التكرار × التشارك × الأيام
+            $screenTotal = $basePrice
+                         * $sizeMultiplier
+                         * $peakMultiplier
+                         * $packageMultiplier
+                         * $sharingMultiplier
+                         * $days;
+
             $totalCost += $screenTotal;
 
             $screenDetails[] = [
-                'screen_id' => $screenId,
-                'screen_name' => $screen->screen_name,
-                'multiplier' => $multiplier,
+                'screen_id'          => $screenId,
+                'screen_name'        => $screen->screen_name,
+                'base_price'         => $basePrice,
+                'size_inch'          => $sizeInch,
+                'size_multiplier'    => $sizeMultiplier,
+                'peak_multiplier'    => $peakMultiplier,
                 'package_multiplier' => $packageMultiplier,
-                'screen_total' => round($screenTotal, 2),
+                'sharing_discount'   => $sharingMultiplier < 1.0
+                    ? round((1 - $sharingMultiplier) * 100) . '% خصم تشارك'
+                    : 'لا يوجد خصم',
+                'shared_advertisers' => $sharedCount,
+                'screen_total'       => round($screenTotal, 2),
             ];
         }
 
         return response()->json([
             'success' => true,
             'data' => [
-                'base_price' => $basePrice,
-                'days' => $days,
-                'frequency' => $frequency,
-                'total_cost' => round($totalCost, 2),
-                'screens' => $screenDetails
+                'days'               => $days,
+                'frequency_minutes'  => $frequency,
+                'package_multiplier' => $packageMultiplier,
+                'total_cost'         => round($totalCost, 2),
+                'screens'            => $screenDetails,
             ]
         ]);
     }

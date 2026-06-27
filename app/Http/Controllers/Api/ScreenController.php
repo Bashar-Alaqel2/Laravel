@@ -149,14 +149,16 @@ class ScreenController extends Controller
         }
 
         $request->validate([
-            'screen_name' => 'nullable|string|max:100',
-            'type_id'     => 'nullable|exists:screen_types,type_id',
-            'street_id'   => 'nullable|exists:streets,street_id',
-            'status'      => 'nullable|in:Online,Offline,Maintenance'
+            'screen_name'      => 'nullable|string|max:100',
+            'type_id'          => 'nullable|exists:screen_types,type_id',
+            'street_id'        => 'nullable|exists:streets,street_id',
+            'status'           => 'nullable|in:Online,Offline,Maintenance',
+            'base_price'       => 'nullable|numeric|min:0',
+            'screen_size_inch' => 'nullable|integer|min:10|max:999',
         ]);
 
         // نقوم بتحديث البيانات التي تم إرسالها فقط
-        $screen->update($request->only(['screen_name', 'type_id', 'street_id', 'status']));
+        $screen->update($request->only(['screen_name', 'type_id', 'street_id', 'status', 'base_price', 'screen_size_inch']));
 
         return response()->json([
             'message' => 'تم تعديل الشاشة بنجاح',
