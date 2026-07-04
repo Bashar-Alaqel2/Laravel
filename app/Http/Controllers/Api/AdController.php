@@ -52,9 +52,8 @@ class AdController extends Controller
             'title'             => 'required|string|max:150',
             'advertiser_id'     => 'nullable|exists:users,user_id', // إذا لم يرسل، نستخدم الحالي
             'category_id'       => 'nullable|exists:categories,category_id',
-            'duration'          => 'required|integer|min:1', 
-            'file_url'          => 'required|url', 
-            'file_size'         => 'required|numeric', // in MB
+            'duration'          => 'nullable|integer|min:1', 
+            'file'              => 'required|file|mimes:mp4,mov,avi,jpeg,png,jpg|max:51200', 
             'start_date'        => 'required|date',
             'end_date'          => 'required|date|after_or_equal:start_date',
             'target_start_time' => 'nullable|date_format:H:i', // جديد: استهداف وقت محدد
@@ -72,9 +71,9 @@ class AdController extends Controller
         }
 
         try {
+            $duration = $request->duration ?? 15; // افتراضياً 15 ثانية إذا لم يرسل الرياكت المدة
             // 1. حساب السعة المطلوبة بالثواني في الساعة الواحدة
             $interval = $request->interval_minutes;
-            $duration = $request->duration;
             $allocatedSeconds = (60 / $interval) * $duration; // مثلاً (60/5) * 15 = 180 ثانية
 
             if ($allocatedSeconds > 3600) {
@@ -118,13 +117,17 @@ class AdController extends Controller
             // تحديد الحالة الأولية
             $initialStatus = $request->filled('receipt_url') ? 'Pending' : 'waiting_payment';
 
+            // رفع الملف المحلي
+            $path = $request->file('file')->store('ads', 'public');
+            $sizeInMB = $request->file('file')->getSize() / 1024 / 1024;
+
             $ad = Advertisement::create([
                 'advertiser_id'   => $request->advertiser_id ?? $request->user()->user_id,
                 'category_id'     => $request->category_id,
                 'title'           => $request->title,
-                'file_path'       => $request->file_url,
+                'file_path'       => '/storage/' . $path,
                 'duration'        => $duration,
-                'file_size'       => $request->file_size,
+                'file_size'       => round($sizeInMB, 2),
                 'start_date'      => $request->start_date,
                 'end_date'        => $request->end_date,
                 'daily_frequency' => $request->interval_minutes, // استخدمنا الحقل كمتغير مؤقت
