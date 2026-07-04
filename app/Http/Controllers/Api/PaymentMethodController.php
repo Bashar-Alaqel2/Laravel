@@ -43,7 +43,7 @@ class PaymentMethodController extends Controller
             'account_details'        => $request->account_details,
             'stripe_publishable_key' => !empty(trim($request->stripe_publishable_key)) ? trim($request->stripe_publishable_key) : null,
             'stripe_secret_key'      => !empty(trim($request->stripe_secret_key)) ? trim($request->stripe_secret_key) : null,
-            'is_active'              => true,
+            'is_active'              => \Illuminate\Support\Facades\DB::raw('true'),
         ]);
 
         return response()->json(['success' => true, 'data' => $method], 201);
@@ -58,7 +58,10 @@ class PaymentMethodController extends Controller
 
         $method = PaymentMethod::findOrFail($id);
         
-        $data = $request->only(['name', 'account_details', 'is_active']);
+        $data = $request->only(['name', 'account_details']);
+        if ($request->has('is_active')) {
+            $data['is_active'] = $request->boolean('is_active') ? \Illuminate\Support\Facades\DB::raw('true') : \Illuminate\Support\Facades\DB::raw('false');
+        }
         
         if ($request->has('stripe_publishable_key')) {
             $data['stripe_publishable_key'] = !empty(trim($request->stripe_publishable_key)) ? trim($request->stripe_publishable_key) : null;
