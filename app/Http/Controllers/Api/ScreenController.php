@@ -53,20 +53,28 @@ class ScreenController extends Controller
         }
 
         // التحقق من أن المعرف قد تم توليده مسبقاً من السيرفر وهو قيد التفعيل
-        $screen = Screen::whereIn('mac_address', $possibleMacs)
-                        ->where('status', 'pending_activation')
+        // البحث عن الشاشة بما في ذلك المحذوفة مؤقتاً
+        $screen = Screen::withTrashed()
+                        ->whereIn('mac_address', $possibleMacs)
                         ->first();
 
-        if (!$screen) {
-            // إذا كانت الشاشة مضافة مسبقاً كنشطة
-            if (Screen::whereIn('mac_address', $possibleMacs)->where('status', '!=', 'pending_activation')->exists()) {
+        if ($screen) {
+            // إذا كانت الشاشة غير محذوفة وليست بانتظار التفعيل
+            if (!$screen->trashed() && $screen->status !== 'pending_activation') {
                 return response()->json([
                     'success' => false,
                     'message' => 'هذا المعرف مستخدم ومضاف لشاشة أخرى مسبقاً!'
                 ], 422);
             }
 
-            // إذا لم تكن موجودة، نقوم بإنشائها مؤقتاً لنسمح بتفعيلها
+            // إذا كانت الشاشة محذوفة، نقوم باسترجاعها (Restore) وإعادتها لوضع بانتظار التفعيل
+            if ($screen->trashed()) {
+                $screen->restore();
+                $screen->status = 'pending_activation';
+                $screen->save();
+            }
+        } else {
+            // إذا لم تكن موجودة نهائياً، نقوم بإنشائها مؤقتاً لنسمح بتفعيلها
             $screen = Screen::create([
                 'screen_name' => 'شاشة غير مفعلة',
                 'mac_address' => $possibleMacs[0], // نستخدم المعرف الذي أدخله المستخدم
