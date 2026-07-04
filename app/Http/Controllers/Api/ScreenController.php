@@ -39,7 +39,7 @@ class ScreenController extends Controller
             'street_id'   => 'nullable|exists:streets,street_id',
             'owner_id'    => 'nullable|exists:users,user_id',
             'linked_by'   => 'nullable|exists:users,user_id',
-            'photo'       => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // الصورة إجبارية
+            'photo'       => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // الصورة اختيارية
         ]);
 
         // التحقق من المعرف المدخل وتنسيقه (دعم مع أو بدون بادئة SB-)
