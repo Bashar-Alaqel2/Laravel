@@ -56,7 +56,10 @@ class PaymentMethodController extends Controller
             return response()->json(['error' => 'غير مصرح لك'], 403);
         }
 
-        $method = PaymentMethod::findOrFail($id);
+        $method = PaymentMethod::find($id);
+        if (!$method) {
+            return response()->json(['success' => false, 'message' => 'وسيلة الدفع غير موجودة أو تم حذفها مسبقاً'], 404);
+        }
         
         $data = $request->only(['name', 'account_details']);
         if ($request->has('is_active')) {
@@ -82,7 +85,11 @@ class PaymentMethodController extends Controller
             return response()->json(['error' => 'غير مصرح لك'], 403);
         }
 
-        $method = PaymentMethod::findOrFail($id);
+        $method = PaymentMethod::find($id);
+        if (!$method) {
+            return response()->json(['success' => false, 'message' => 'وسيلة الدفع غير موجودة أو تم حذفها مسبقاً'], 404);
+        }
+        
         $method->delete();
 
         return response()->json(['success' => true, 'message' => 'تم الحذف بنجاح']);
