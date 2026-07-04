@@ -58,10 +58,21 @@ class ScreenController extends Controller
                         ->first();
 
         if (!$screen) {
-            return response()->json([
-                'success' => false,
-                'message' => 'المعرف المدخل غير صالح أو لم يتم توليده من السيرفر مسبقاً!'
-            ], 422);
+            // إذا كانت الشاشة مضافة مسبقاً كنشطة
+            if (Screen::whereIn('mac_address', $possibleMacs)->where('status', '!=', 'pending_activation')->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'هذا المعرف مستخدم ومضاف لشاشة أخرى مسبقاً!'
+                ], 422);
+            }
+
+            // إذا لم تكن موجودة، نقوم بإنشائها مؤقتاً لنسمح بتفعيلها
+            $screen = Screen::create([
+                'screen_name' => 'شاشة غير مفعلة',
+                'mac_address' => $possibleMacs[0], // نستخدم المعرف الذي أدخله المستخدم
+                'pairing_code'=> $possibleMacs[0],
+                'status'      => 'pending_activation',
+            ]);
         }
 
         // معالجة رفع الصورة وتحويلها إلى Base64 لتخزينها في قاعدة البيانات مباشرة
