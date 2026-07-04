@@ -37,7 +37,7 @@ class AdvertiserController extends Controller
         // جلب آخر 5 إعلانات حديثة
         $recentAds = Advertisement::where('advertiser_id', $userId)
             ->where('is_deleted', 'false')
-            ->orderBy('created_at', 'desc')
+            ->orderBy('uploaded_at', 'desc')
             ->take(5)
             ->get();
 
