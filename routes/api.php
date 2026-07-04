@@ -71,6 +71,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // === مسارات باقات التكرار (Frequency Packages) ===
     Route::apiResource('frequency-packages', App\Http\Controllers\Api\FrequencyPackageController::class);
     
+    // === مسارات خصومات المدد الإعلانية (Duration Discounts) ===
+    Route::apiResource('duration-discounts', App\Http\Controllers\Api\DurationDiscountController::class);
+    
     // === مسارات لوحة التحكم (Dashboard) ===
     Route::get('/dashboard/overview', [App\Http\Controllers\Api\DashboardController::class, 'getOverview']);
     Route::get('/owner/dashboard', [App\Http\Controllers\Api\DashboardController::class, 'getOwnerOverview']);
