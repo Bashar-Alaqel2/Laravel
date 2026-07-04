@@ -32,6 +32,17 @@ return [
             'manage_all',         // يمتلك جميع العمليات (يمكن استخدامها كـ Bypass)
         ],
 
+        // 1.5. المدير (Admin) - يمتلك نفس صلاحيات المدير العام حالياً
+        'Admin' => [
+            'manage_users',
+            'manage_roles',
+            'manage_settings',
+            'manage_regions',
+            'view_global_reports',
+            'approve_contracts',
+            'manage_all',
+        ],
+
         // 2. المعلن (Advertiser) - مستخدم خارجي يطلق حملات
         'Advertiser' => [
             // إدارة الحملات

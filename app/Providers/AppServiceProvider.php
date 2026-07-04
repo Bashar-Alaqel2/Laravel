@@ -29,8 +29,8 @@ class AppServiceProvider extends ServiceProvider
             // إحضار اسم الدور من قاعدة البيانات (مثل: SuperAdmin, Advertiser)
             $roleName = $user->role->role_name;
 
-            // إذا كان المستخدم هو المدير العام (Super Admin)، نعطيه كل الصلاحيات مطلقاً
-            if ($roleName === 'SuperAdmin') {
+            // إذا كان المستخدم هو المدير العام (Super Admin) أو مدير (Admin)، نعطيه كل الصلاحيات مطلقاً
+            if ($roleName === 'SuperAdmin' || $roleName === 'Admin') {
                 return true;
             }
 
