@@ -294,7 +294,7 @@ class AdController extends Controller
         }
 
         // الحذف المنطقي (Soft Delete)
-        $ad->is_deleted = true;
+        $ad->is_deleted = \Illuminate\Support\Facades\DB::raw('true');
         $ad->deleted_at = now();
         $ad->save();
 
