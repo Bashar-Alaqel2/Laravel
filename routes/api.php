@@ -9,27 +9,6 @@ use App\Http\Controllers\Api\ScreenController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::get('/test-s3', function () {
-    try {
-        $disk = \Illuminate\Support\Facades\Storage::disk('s3');
-        $disk->put('test-vercel.txt', 'Hello from Vercel!');
-        return response()->json([
-            'success' => true, 
-            'url' => $disk->url('test-vercel.txt'),
-            'env' => [
-                'bucket' => env('AWS_BUCKET'),
-                'region' => env('AWS_DEFAULT_REGION'),
-                'has_key' => !empty(env('AWS_ACCESS_KEY_ID')),
-                'has_secret' => !empty(env('AWS_SECRET_ACCESS_KEY')),
-                'path_style' => env('AWS_USE_PATH_STYLE_ENDPOINT'),
-                'path_style_type' => gettype(env('AWS_USE_PATH_STYLE_ENDPOINT')),
-            ]
-        ]);
-    } catch (\Exception $e) {
-        $prev = $e->getPrevious() ? ' | Prev: ' . $e->getPrevious()->getMessage() : '';
-        return response()->json(['success' => false, 'error' => $e->getMessage() . $prev]);
-    }
-});
 Route::get('/login', function() {
     return response()->json(['success' => false, 'message' => 'Unauthenticated or Redirected.'], 401);
 })->name('login');
