@@ -137,7 +137,16 @@ class FinancialController extends Controller
         }
 
         $ledger = $query->orderBy('created_at', 'desc')->get();
-        return response()->json(['success' => true, 'data' => $ledger], 200);
+        
+        $totalPayments = $ledger->whereIn('transaction_type', ['payment', 'payment_in'])->where('status', 'completed')->sum('amount');
+        
+        return response()->json([
+            'success' => true, 
+            'data' => [
+                'total_payments' => $totalPayments,
+                'transactions'   => $ledger
+            ]
+        ], 200);
     }
 
     // ==========================================

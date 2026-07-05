@@ -72,7 +72,7 @@ class AdvertiserController extends Controller
         // سجل العمليات
         $transactions = FinancialLedger::with('advertisement:ad_id,title')
             ->where('user_id', $userId)
-            ->where('transaction_type', 'payment')
+            ->whereIn('transaction_type', ['payment', 'payment_in'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($tx) {
