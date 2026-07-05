@@ -27,11 +27,7 @@ Route::get('/test-s3', function () {
         ]);
     } catch (\Exception $e) {
         $prev = $e->getPrevious() ? ' | Prev: ' . $e->getPrevious()->getMessage() : '';
-        return response()->json([
-            'success' => false, 
-            'error' => $e->getMessage() . $prev,
-            'debug_config' => config('filesystems.disks.s3.use_path_style_endpoint')
-        ]);
+        return response()->json(['success' => false, 'error' => $e->getMessage() . $prev]);
     }
 });
 Route::get('/login', function() {
