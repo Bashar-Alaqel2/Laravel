@@ -132,5 +132,6 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::apiResource('payment-methods', App\Http\Controllers\Api\PaymentMethodController::class);
     Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createPaymentIntent']);
+    Route::post('/payments/manual', [App\Http\Controllers\Api\ManualPaymentController::class, 'store']);
     
 });
