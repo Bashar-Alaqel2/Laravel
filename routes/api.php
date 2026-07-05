@@ -10,6 +10,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/test-s3', function () {
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
     try {
         $disk = \Illuminate\Support\Facades\Storage::disk('s3');
         $disk->put('test-vercel.txt', 'Hello from Vercel!');
