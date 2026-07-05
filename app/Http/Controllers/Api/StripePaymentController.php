@@ -81,11 +81,11 @@ class StripePaymentController extends Controller
                 'status'           => 'completed'
             ]);
 
-            // تحديث حالة الدفع في الإعلان
+            // تحديث حالة الدفع في الإعلان لتصبح نشطة
             $ad->update([
                 'payment_status' => 'paid',
                 'payment_method' => 'stripe',
-                'status' => 'pending' // ينتقل للمراجعة بعد الدفع
+                'status' => 'Active' // يبدأ العرض فوراً بعد الدفع
             ]);
 
             // إرسال إشعار للمعلن
