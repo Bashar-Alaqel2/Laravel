@@ -114,8 +114,8 @@ class AdController extends Controller
                 }
             }
 
-            // تحديد الحالة الأولية
-            $initialStatus = $request->filled('receipt_url') ? 'Pending' : 'waiting_payment';
+            // تحديد الحالة الأولية: جميع الإعلانات تذهب للمراجعة أولاً
+            $initialStatus = 'Pending';
 
             // رفع الملف المحلي
             $path = $request->file('file')->store('ads', 'public');
@@ -224,7 +224,7 @@ class AdController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|in:Active,Paused,Rejected',
+            'status' => 'required|in:Active,Paused,Rejected,waiting_payment',
             'reason' => 'required_if:status,Rejected|string|nullable'
         ]);
 
@@ -233,7 +233,9 @@ class AdController extends Controller
             return response()->json(['error' => 'الإعلان غير موجود.'], 404);
         }
 
+        $oldStatus = $ad->status;
         $ad->status = $request->status;
+        
         if ($request->status === 'Rejected') {
             $ad->rejection_reason = $request->reason;
         } else {
@@ -241,7 +243,15 @@ class AdController extends Controller
         }
         $ad->save();
 
-        // إرسال إشعار للمعلن
+        // إرسال إشعار للمعلن عند الموافقة وطلب الدفع
+        if ($oldStatus === 'Pending' && $request->status === 'waiting_payment') {
+            $user = \App\Models\User::find($ad->advertiser_id);
+            if ($user) {
+                $user->notify(new \App\Notifications\AdApprovedForPayment($ad));
+            }
+        }
+
+        // إرسال إشعار للمعلن عند التفعيل المباشر
         if ($ad->status === 'Active') {
             \App\Models\Notification::create([
                 'user_id' => $ad->advertiser_id,
