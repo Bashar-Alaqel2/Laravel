@@ -19,14 +19,15 @@ class StripePaymentController extends Controller
      */
     public function createPaymentIntent(Request $request)
     {
-        $request->validate(['ad_id' => 'required|exists:advertisements,ad_id']);
+        $request->validate([
+            'ad_id' => 'required|exists:advertisements,ad_id',
+            'payment_method_id' => 'required|exists:payment_methods,method_id'
+        ]);
         
         $ad = Advertisement::findOrFail($request->ad_id);
 
-        // جلب وسيلة دفع Stripe النشطة التي تحتوي على مفتاح سري
-        $paymentMethod = PaymentMethod::whereNotNull('stripe_secret_key')
-            ->where('stripe_secret_key', '!=', '')
-            ->first();
+        // جلب البوابة المحددة
+        $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
 
         if (!$paymentMethod) {
             return response()->json(['success' => false, 'message' => 'لم يتم إعداد مفاتيح Stripe في لوحة الإدارة'], 400);
