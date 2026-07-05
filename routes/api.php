@@ -8,6 +8,25 @@ use App\Http\Controllers\Api\ScreenController;
 // مسارات مفتوحة (لا تحتاج تسجيل دخول)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+Route::get('/test-s3', function () {
+    try {
+        $disk = \Illuminate\Support\Facades\Storage::disk('s3');
+        $disk->put('test-vercel.txt', 'Hello from Vercel!');
+        return response()->json([
+            'success' => true, 
+            'url' => $disk->url('test-vercel.txt'),
+            'env' => [
+                'bucket' => env('AWS_BUCKET'),
+                'region' => env('AWS_DEFAULT_REGION'),
+                'has_key' => !empty(env('AWS_ACCESS_KEY_ID')),
+                'has_secret' => !empty(env('AWS_SECRET_ACCESS_KEY'))
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'error' => $e->getMessage()]);
+    }
+});
 Route::get('/login', function() {
     return response()->json(['success' => false, 'message' => 'Unauthenticated or Redirected.'], 401);
 })->name('login');
