@@ -20,7 +20,9 @@ Route::get('/test-s3', function () {
                 'bucket' => env('AWS_BUCKET'),
                 'region' => env('AWS_DEFAULT_REGION'),
                 'has_key' => !empty(env('AWS_ACCESS_KEY_ID')),
-                'has_secret' => !empty(env('AWS_SECRET_ACCESS_KEY'))
+                'has_secret' => !empty(env('AWS_SECRET_ACCESS_KEY')),
+                'path_style' => env('AWS_USE_PATH_STYLE_ENDPOINT'),
+                'path_style_type' => gettype(env('AWS_USE_PATH_STYLE_ENDPOINT')),
             ]
         ]);
     } catch (\Exception $e) {
