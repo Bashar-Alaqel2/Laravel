@@ -117,15 +117,18 @@ class AdController extends Controller
             // تحديد الحالة الأولية: جميع الإعلانات تذهب للمراجعة أولاً
             $initialStatus = 'Pending';
 
-            // رفع الملف المحلي
-            $path = $request->file('file')->store('ads', 'public');
+            // رفع الملف إلى مساحة التخزين السحابية S3 (Supabase)
+            $path = $request->file('file')->store('ads', 's3');
             $sizeInMB = $request->file('file')->getSize() / 1024 / 1024;
+            
+            // جلب الرابط العام للملف
+            $fileUrl = \Illuminate\Support\Facades\Storage::disk('s3')->url($path);
 
             $ad = Advertisement::create([
                 'advertiser_id'   => $request->advertiser_id ?? $request->user()->user_id,
                 'category_id'     => $request->category_id,
                 'title'           => $request->title,
-                'file_path'       => '/storage/' . $path,
+                'file_path'       => $fileUrl,
                 'duration'        => $duration,
                 'file_size'       => round($sizeInMB, 2),
                 'start_date'      => $request->start_date,
