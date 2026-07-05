@@ -245,10 +245,12 @@ class AdController extends Controller
 
         // إرسال إشعار للمعلن عند الموافقة وطلب الدفع
         if ($oldStatus === 'Pending' && $request->status === 'waiting_payment') {
-            $user = \App\Models\User::find($ad->advertiser_id);
-            if ($user) {
-                $user->notify(new \App\Notifications\AdApprovedForPayment($ad));
-            }
+            \App\Models\Notification::create([
+                'user_id' => $ad->advertiser_id,
+                'title' => json_encode(['key' => 'notif_title_ad_approved_for_payment', 'fallback' => 'تهانينا! تمت الموافقة على إعلانك']),
+                'message' => json_encode(['key' => 'notif_msg_ad_approved_for_payment', 'args' => ['title' => $ad->title], 'fallback' => 'الإعلان "' . $ad->title . '" اجتاز المراجعة وهو جاهز للدفع لكي يتم نشره.']),
+                'is_read' => 'false',
+            ]);
         }
 
         // إرسال إشعار للمعلن عند التفعيل المباشر
