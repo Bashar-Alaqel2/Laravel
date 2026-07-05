@@ -24,7 +24,8 @@ Route::get('/test-s3', function () {
             ]
         ]);
     } catch (\Exception $e) {
-        return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        $prev = $e->getPrevious() ? ' | Prev: ' . $e->getPrevious()->getMessage() : '';
+        return response()->json(['success' => false, 'error' => $e->getMessage() . $prev]);
     }
 });
 Route::get('/login', function() {
