@@ -85,8 +85,8 @@ class AdController extends Controller
             $reqEndTime   = $request->target_end_time ?? '23:59:59';
 
             foreach ($request->screen_ids as $screenId) {
-                // جلب مجموع الثواني المحجوزة مسبقاً في هذه الشاشة في نفس الوقت والتاريخ
-                $usedSeconds = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
+                // جلب الإعلانات النشطة التي تتقاطع تواريخها وأوقاتها مع المطلوب لهذه الشاشة
+                $overlappingSchedules = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
                         // نتجاهل الإعلانات المرفوضة والمحذوفة
                         $q->where('status', '!=', 'Rejected')->whereNull('deleted_at');
                     })
@@ -97,20 +97,72 @@ class AdController extends Controller
                     ->where('start_date', '<=', $request->end_date)
                     ->where('end_date', '>=', $request->start_date)
                     ->where(function ($query) use ($reqStartTime, $reqEndTime) {
-                        // تداخل الأوقات: وقت بداية المحجوز أصغر من نهاية المطلوب، ووقت نهاية المحجوز أكبر من بداية المطلوب
+                        // تداخل الأوقات
                         $query->where(function($q) use ($reqStartTime, $reqEndTime) {
                             $q->where('start_time', '<', $reqEndTime)
                               ->where('end_time', '>', $reqStartTime);
                         })->orWhereNull('start_time'); // يشمل الإعلانات المفتوحة 24/7
                     })
-                    ->sum('allocated_seconds');
+                    ->get();
 
-                if (($usedSeconds + $allocatedSeconds) > 3600) {
-                    $available = 3600 - $usedSeconds;
-                    return response()->json([
-                        'success' => false, 
-                        'message' => "نعتذر، الشاشة رقم {$screenId} ممتلئة ولا تتسع لإعلانك في هذا الوقت. السعة المتبقية: {$available} ثانية في الساعة."
-                    ], 400);
+                // فحص السعة يوماً بيوم باستخدام Sweep-Line
+                $currentDate = \Carbon\Carbon::parse($request->start_date);
+                $endDate = \Carbon\Carbon::parse($request->end_date);
+
+                while ($currentDate->lte($endDate)) {
+                    $dateStr = $currentDate->toDateString();
+                    
+                    // فلترة الإعلانات النشطة في هذا اليوم التحديداً
+                    $dailySchedules = $overlappingSchedules->filter(function($schedule) use ($dateStr) {
+                        return $schedule->start_date <= $dateStr && $schedule->end_date >= $dateStr;
+                    });
+
+                    $events = [];
+                    foreach ($dailySchedules as $schedule) {
+                        $sTime = $schedule->start_time ?? '00:00:00';
+                        $eTime = $schedule->end_time ?? '23:59:59';
+                        
+                        // نقاط التقاطع الفعلية مع نافذة العرض المطلوبة
+                        $overlapStart = max($sTime, $reqStartTime);
+                        $overlapEnd = min($eTime, $reqEndTime);
+                        
+                        if ($overlapStart < $overlapEnd) {
+                            $events[] = ['time' => $overlapStart, 'type' => 'start', 'value' => $schedule->allocated_seconds];
+                            $events[] = ['time' => $overlapEnd, 'type' => 'end', 'value' => $schedule->allocated_seconds];
+                        }
+                    }
+
+                    // ترتيب الأحداث زمنياً (النهاية قبل البداية إذا تساوت الأوقات لتجنب ذروة وهمية)
+                    usort($events, function($a, $b) {
+                        if ($a['time'] == $b['time']) {
+                            return $a['type'] == 'end' ? -1 : 1; 
+                        }
+                        return $a['time'] <=> $b['time'];
+                    });
+
+                    $currentLoad = 0;
+                    $maxLoad = 0;
+                    
+                    foreach ($events as $event) {
+                        if ($event['type'] == 'start') {
+                            $currentLoad += $event['value'];
+                            if ($currentLoad > $maxLoad) {
+                                $maxLoad = $currentLoad;
+                            }
+                        } else {
+                            $currentLoad -= $event['value'];
+                        }
+                    }
+
+                    if (($maxLoad + $allocatedSeconds) > 3600) {
+                        $available = 3600 - $maxLoad;
+                        return response()->json([
+                            'success' => false, 
+                            'message' => "نعتذر، الشاشة المحددة ممتلئة ولا تتسع لإعلانك في يوم {$dateStr}. السعة المتبقية في أوقات الذروة: {$available} ثانية في الساعة."
+                        ], 400);
+                    }
+
+                    $currentDate->addDay();
                 }
             }
 
