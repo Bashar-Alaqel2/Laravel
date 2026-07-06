@@ -28,32 +28,34 @@ class DashboardController extends Controller
         $pendingAdsCount = Advertisement::where('status', 'pending')->count() ?? 0;
         $activeUsersCount = User::count() ?? 0;
 
-        // وضع بيانات افتراضية إذا كانت قاعدة البيانات فارغة (لكي لا تتعطل واجهة علي)
-        if ($totalScreensCount == 0) {
-            $totalRevenue = 20530;
-            $activeScreensCount = 500;
-            $totalScreensCount = 700;
-            $pendingAdsCount = 23;
-            $activeUsersCount = 13;
-        }
+
 
         // 2. إحصائيات الدخل الأسبوعي (Weekly Revenue)
         $weeklyRevenue = [];
-        $days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        foreach ($days as $index => $dayName) {
-            // نولد بيانات افتراضية لاختبار الواجهة
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $dayName = $date->format('D');
+            
+            $amount = \App\Models\FinancialLedger::where('transaction_type', 'payment_in')
+                ->where('status', 'completed')
+                ->whereDate('created_at', $date->toDateString())
+                ->sum('amount') ?? 0;
+                
             $weeklyRevenue[] = [
                 'day' => $dayName,
-                'amount' => rand(500, 2000), // يمكنك لاحقاً تبديلها باستعلامات حقيقية
+                'amount' => $amount,
             ];
         }
 
         // 3. التوزيع الجغرافي للشاشات (Screens by Governorate)
-        $screensByGov = [
-            ['name' => 'Sanaa', 'count' => 45],
-            ['name' => 'Aden', 'count' => 30],
-            ['name' => 'Taiz', 'count' => 25],
-        ];
+        $govData = \App\Models\Screen::join('streets', 'screens.street_id', '=', 'streets.street_id')
+            ->join('regions', 'streets.region_id', '=', 'regions.region_id')
+            ->join('governorates', 'regions.gov_id', '=', 'governorates.gov_id')
+            ->select('governorates.name as name', \DB::raw('count(screens.screen_id) as count'))
+            ->groupBy('governorates.name')
+            ->get();
+            
+        $screensByGov = $govData->isEmpty() ? [] : $govData->toArray();
 
         // 4. السجلات الحديثة (Recent Play Logs)
         // نحاول جلب آخر 5 سجلات من القاعدة
@@ -71,14 +73,7 @@ class DashboardController extends Controller
             ];
         })->toArray();
 
-        // بيانات تجريبية في حال كانت القاعدة فارغة
-        if (empty($recentLogs)) {
-            $recentLogs = [
-                ['ad_name' => 'Ad 1 (Pepsi)', 'screen_name' => 'Screen 1 (Sanaa Univ)', 'duration' => 15, 'playback_timestamp' => Carbon::now()->subMinutes(2)->toDateTimeString()],
-                ['ad_name' => 'Ad 2 (MTN)', 'screen_name' => 'Screen 5 (Tahrir Sq)', 'duration' => 10, 'playback_timestamp' => Carbon::now()->subMinutes(15)->toDateTimeString()],
-                ['ad_name' => 'Ad 3 (Samsung)', 'screen_name' => 'Screen 12 (Aden Mall)', 'duration' => 30, 'playback_timestamp' => Carbon::now()->subMinutes(45)->toDateTimeString()],
-            ];
-        }
+
 
         // إرجاع الاستجابة بصيغة JSON صديقة للواجهة الأمامية
         return response()->json([
