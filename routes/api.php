@@ -16,6 +16,7 @@ Route::get('/login', function() {
 // مسار ربط الشاشات الفيزيائية
 Route::post('/screens/link', [ScreenController::class, 'linkScreen']);
 Route::post('/screens/ping', [ScreenController::class, 'ping']);
+Route::post('/screens/playback-log', [ScreenController::class, 'recordPlaybackLog']);
 Route::get('/screens/check', [ScreenController::class, 'check']);
 Route::post('/screens/generate-id', [ScreenController::class, 'generateId']);
 Route::get('/playlist', [App\Http\Controllers\Api\PlaylistController::class, 'getPlaylist']);

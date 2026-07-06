@@ -244,6 +244,35 @@ class ScreenController extends Controller
     }
 
     // ==========================================
+    // 5.5 تسجيل بث الإعلانات (Playback Logs)
+    // ==========================================
+    public function recordPlaybackLog(Request $request)
+    {
+        $request->validate([
+            'mac_address' => 'required|string',
+            'ad_id'       => 'required|integer',
+        ]);
+
+        $screen = Screen::where('mac_address', $request->mac_address)->first();
+        
+        if (!$screen) {
+            return response()->json(['message' => 'الشاشة غير مربوطة'], 404);
+        }
+
+        // تسجيل مشاهدة جديدة
+        \App\Models\PlaybackLog::create([
+            'ad_id'     => $request->ad_id,
+            'screen_id' => $screen->screen_id,
+            'played_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Playback log recorded successfully'
+        ], 200);
+    }
+
+    // ==========================================
     // 6. ربط الشاشة الفيزيائية بالنظام (من تطبيق التلفاز)
     // ==========================================
     public function linkScreen(Request $request)

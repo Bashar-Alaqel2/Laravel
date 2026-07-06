@@ -67,8 +67,8 @@ class DashboardController extends Controller
         $recentLogs = $recentLogsQuery->map(function($log) {
             return [
                 'ad_name' => $log->advertisement->title ?? 'Unknown Ad',
-                'screen_name' => $log->screen->name ?? 'Unknown Screen',
-                'duration' => $log->duration_seconds,
+                'screen_name' => $log->screen->screen_name ?? 'Unknown Screen',
+                'duration' => $log->advertisement->duration_seconds ?? null,
                 'playback_timestamp' => $log->played_at,
             ];
         })->toArray();
