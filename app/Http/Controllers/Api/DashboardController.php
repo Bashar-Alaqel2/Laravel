@@ -68,7 +68,7 @@ class DashboardController extends Controller
             return [
                 'ad_name' => $log->advertisement->title ?? 'Unknown Ad',
                 'screen_name' => $log->screen->screen_name ?? 'Unknown Screen',
-                'duration' => $log->advertisement->duration_seconds ?? null,
+                'duration' => $log->advertisement->duration ?? null,
                 'playback_timestamp' => $log->played_at,
             ];
         })->toArray();
