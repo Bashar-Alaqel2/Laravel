@@ -53,7 +53,7 @@ return [
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION'),
             'bucket' => env('AWS_BUCKET'),
-            'url' => 'https://uyvykohckfygsbxbzrpp.storage.supabase.co/storage/v1/s3',
+            'url' => 'https://uyvykohckfygsbxbzrpp.supabase.co/storage/v1/object/public/' . env('AWS_BUCKET'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => true, // إجباري لـ Supabase
             'throw' => true,
