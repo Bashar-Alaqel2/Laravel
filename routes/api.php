@@ -138,4 +138,5 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // === مسارات التقارير ===
     Route::get('/reports/screen', [App\Http\Controllers\Api\ReportController::class, 'screenReport']);
+    Route::get('/reports/maintenance', [App\Http\Controllers\Api\ReportController::class, 'maintenanceReport']);
 });

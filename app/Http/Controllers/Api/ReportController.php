@@ -23,6 +23,15 @@ class ReportController extends Controller {
 
         $screen = Screen::with('street.region.governorate')->findOrFail($screenId);
 
+        $user = $request->user();
+        
+        // חماية تقارير الملاك
+        if ($user && ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner'))) {
+            if ((int)$screen->owner_id !== (int)$user->user_id) {
+                return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول لتقرير هذه الشاشة'], 403);
+            }
+        }
+
         // Fetch ads that are linked to this screen and overlap with the date range
         $adScreens = AdScreen::with(['advertisement.advertiser', 'advertisement.category'])
             ->where('screen_id', $screenId)
@@ -76,6 +85,53 @@ class ReportController extends Controller {
                 'total_plays' => $totalPlays,
             ],
             'ads' => $adsData,
+        ]);
+    }
+
+    public function maintenanceReport(Request $request) {
+        $request->validate([
+            'screen_id' => 'required|exists:screens,screen_id',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $screenId = $request->screen_id;
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
+
+        $screen = Screen::with('street.region.governorate')->findOrFail($screenId);
+
+        // Fetch total ads count just for activity metric, no financial data
+        $adScreens = AdScreen::where('screen_id', $screenId)
+            ->whereHas('advertisement', function ($q) use ($startDate, $endDate) {
+                $q->where('start_date', '<=', $endDate)
+                  ->where('end_date', '>=', $startDate)
+                  ->whereIn('status', ['Active', 'Completed', 'Paused']);
+            })
+            ->count();
+
+        // Count plays to show the screen was actually active and functioning
+        $totalPlays = PlaybackLog::where('screen_id', $screenId)
+            ->whereDate('played_at', '>=', $startDate)
+            ->whereDate('played_at', '<=', $endDate)
+            ->count();
+
+        // Calculate hours since disconnected_at if it's currently disconnected
+        $offlineHours = 0;
+        if ($screen->disconnected_at) {
+            $offlineHours = \Carbon\Carbon::parse($screen->disconnected_at)->diffInHours(now());
+        }
+
+        return response()->json([
+            'screen' => $screen,
+            'summary' => [
+                'total_ads' => $adScreens,
+                'total_plays' => $totalPlays,
+                'status' => $screen->status,
+                'last_ping' => $screen->linked_at,
+                'offline_since' => $screen->disconnected_at,
+                'offline_hours' => $offlineHours,
+            ]
         ]);
     }
 }
