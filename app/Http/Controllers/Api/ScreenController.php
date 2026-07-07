@@ -40,6 +40,8 @@ class ScreenController extends Controller
             'owner_id'    => 'nullable|exists:users,user_id',
             'linked_by'   => 'nullable|exists:users,user_id',
             'photo'       => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // الصورة اختيارية
+            'latitude'    => 'nullable|numeric',
+            'longitude'   => 'nullable|numeric',
         ]);
 
         // التحقق من المعرف المدخل وتنسيقه (دعم مع أو بدون بادئة SB-)
@@ -100,8 +102,12 @@ class ScreenController extends Controller
             'street_id'   => $request->street_id,
             'linked_by'   => $request->linked_by,
             'image_path'  => $imagePath,
+            'base_price'  => $request->base_price ?? 10.00,
+            'screen_size_inch' => $request->screen_size_inch ?? 55,
             'status'      => 'active', // تفعيل الشاشة لتصبح نشطة
             'linked_at'   => now(),
+            'latitude'    => $request->latitude ?? $screen->latitude,
+            'longitude'   => $request->longitude ?? $screen->longitude,
         ]);
 
         // إرسال إشعار للمديرين
@@ -174,10 +180,12 @@ class ScreenController extends Controller
             'status'           => 'nullable|in:Online,Offline,Maintenance',
             'base_price'       => 'nullable|numeric|min:0',
             'screen_size_inch' => 'nullable|integer|min:10|max:999',
+            'latitude'         => 'nullable|numeric',
+            'longitude'        => 'nullable|numeric',
         ]);
 
         // نقوم بتحديث البيانات التي تم إرسالها فقط
-        $screen->update($request->only(['screen_name', 'type_id', 'street_id', 'status', 'base_price', 'screen_size_inch']));
+        $screen->update($request->only(['screen_name', 'type_id', 'street_id', 'status', 'base_price', 'screen_size_inch', 'latitude', 'longitude']));
 
         return response()->json([
             'message' => 'تم تعديل الشاشة بنجاح',
