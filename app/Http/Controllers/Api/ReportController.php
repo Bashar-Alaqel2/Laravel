@@ -33,26 +33,26 @@ class ReportController extends Controller {
         }
 
         // Fetch ads that are linked to this screen and overlap with the date range
-        $adScreens = AdScreen::with(['advertisement.advertiser', 'advertisement.category'])
-            ->where('screen_id', $screenId)
-            ->whereHas('advertisement', function ($q) use ($startDate, $endDate) {
-                $q->where('start_date', '<=', $endDate)
-                  ->where('end_date', '>=', $startDate)
-                  ->whereIn('status', ['Active', 'Completed', 'Paused']);
+        $ads = Advertisement::with(['advertiser', 'category', 'screens'])
+            ->whereHas('screens', function ($q) use ($screenId) {
+                $q->where('advertisement_screen.screen_id', $screenId);
             })
+            ->where('start_date', '<=', $endDate)
+            ->where('end_date', '>=', $startDate)
+            ->whereIn('status', ['Active', 'Completed', 'Paused'])
             ->get();
 
         $totalRevenue = 0;
-        $totalAds = $adScreens->count();
+        $totalAds = $ads->count();
         $totalPlays = 0;
 
         $adsData = [];
 
-        foreach ($adScreens as $adScreen) {
-            $ad = $adScreen->advertisement;
-            if (!$ad) continue;
+        foreach ($ads as $ad) {
+            $screensCount = max($ad->screens->count(), 1);
+            $netToOwners = ($ad->total_cost ?? 0) * 0.80; // 80% to owners, 20% to platform
+            $revenue = $netToOwners / $screensCount;
 
-            $revenue = $adScreen->price ?? 0;
             $totalRevenue += $revenue;
 
             // Get actual plays within the date range
@@ -102,12 +102,12 @@ class ReportController extends Controller {
         $screen = Screen::with('street.region.governorate')->findOrFail($screenId);
 
         // Fetch total ads count just for activity metric, no financial data
-        $adScreens = AdScreen::where('screen_id', $screenId)
-            ->whereHas('advertisement', function ($q) use ($startDate, $endDate) {
-                $q->where('start_date', '<=', $endDate)
-                  ->where('end_date', '>=', $startDate)
-                  ->whereIn('status', ['Active', 'Completed', 'Paused']);
+        $adsCount = Advertisement::whereHas('screens', function ($q) use ($screenId) {
+                $q->where('advertisement_screen.screen_id', $screenId);
             })
+            ->where('start_date', '<=', $endDate)
+            ->where('end_date', '>=', $startDate)
+            ->whereIn('status', ['Active', 'Completed', 'Paused'])
             ->count();
 
         // Count plays to show the screen was actually active and functioning
@@ -125,7 +125,7 @@ class ReportController extends Controller {
         return response()->json([
             'screen' => $screen,
             'summary' => [
-                'total_ads' => $adScreens,
+                'total_ads' => $adsCount,
                 'total_plays' => $totalPlays,
                 'status' => $screen->status,
                 'last_ping' => $screen->linked_at,
