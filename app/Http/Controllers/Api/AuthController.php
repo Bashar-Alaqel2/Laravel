@@ -63,6 +63,8 @@ class AuthController extends Controller
         ]);
 
         // إرسال إشعار للمديرين
+        \Illuminate\Support\Facades\Cache::forget('lookup_users_role_advertiser');
+
         $admins = User::whereHas('role', function($q) {
             $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
         })->get();
@@ -208,6 +210,10 @@ class AuthController extends Controller
             }
         }
 
+        if ($role) {
+            \Illuminate\Support\Facades\Cache::forget('lookup_users_role_' . strtolower($role->role_name));
+        }
+
         return response()->json(['message' => 'تم إضافة المستخدم بنجاح', 'data' => $user->load('role')], 201);
     }
 
@@ -230,7 +236,9 @@ class AuthController extends Controller
 
         if (!$hasActivity) {
             // حذف نهائي (Hard Delete) إذا لم يكن لديه نشاط
+            $roleCacheKey = $user->role ? 'lookup_users_role_' . strtolower($user->role->role_name) : null;
             $user->forceDelete();
+            if ($roleCacheKey) \Illuminate\Support\Facades\Cache::forget($roleCacheKey);
             return response()->json(['message' => 'تم حذف المستخدم نهائياً من قاعدة البيانات نظراً لعدم وجود أي نشاط مرتبط به'], 200);
         } else {
             // إذا كان المستخدم محذوف لينة مسبقاً فلا داعي لحذفه مرة أخرى
@@ -239,6 +247,7 @@ class AuthController extends Controller
             }
             // حذف آمن (Soft Delete) لوجود نشاط
             $user->delete();
+            if ($user->role) \Illuminate\Support\Facades\Cache::forget('lookup_users_role_' . strtolower($user->role->role_name));
             return response()->json(['message' => 'تم حذف المستخدم (حذف آمن) للحفاظ على بياناته المالية والإعلانية المرتبطة'], 200);
         }
     }
@@ -251,10 +260,19 @@ class AuthController extends Controller
         ]);
 
         $user = User::findOrFail($id);
+        
+        $oldRole = $user->role;
+        if ($oldRole) {
+            \Illuminate\Support\Facades\Cache::forget('lookup_users_role_' . strtolower($oldRole->role_name));
+        }
+
         $user->role_id = $request->role_id;
         $user->save();
 
         $role = Role::find($request->role_id);
+        if ($role) {
+            \Illuminate\Support\Facades\Cache::forget('lookup_users_role_' . strtolower($role->role_name));
+        }
         if ($role && $role->role_name === 'ScreenOwner') {
             if ($request->bank_name && $request->account_number) {
                 BankAccount::updateOrCreate(

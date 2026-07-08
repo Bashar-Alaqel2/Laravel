@@ -12,14 +12,16 @@ class PaymentMethodController extends Controller
     // عرض كل الوسائل (للأدمن أو المعلن)
     public function index(Request $request)
     {
-        $query = PaymentMethod::query();
+        $methods = \Illuminate\Support\Facades\Cache::remember('payment_methods', 86400, function() {
+            return PaymentMethod::all();
+        });
         
         // إذا لم يكن أدمن، يرى فقط النشط
         if (!$request->user()->can('manage_all')) {
-            $query->where('is_active', 1);
+            $methods = $methods->where('is_active', 1)->values();
         }
 
-        return response()->json(['success' => true, 'data' => $query->get()]);
+        return response()->json(['success' => true, 'data' => $methods]);
     }
 
     // إضافة وسيلة دفع جديدة (للأدمن فقط)
@@ -45,6 +47,8 @@ class PaymentMethodController extends Controller
             'stripe_secret_key'      => !empty(trim($request->stripe_secret_key)) ? trim($request->stripe_secret_key) : null,
             'is_active'              => 1,
         ]);
+
+        \Illuminate\Support\Facades\Cache::forget('payment_methods');
 
         return response()->json(['success' => true, 'data' => $method], 201);
     }
@@ -75,6 +79,8 @@ class PaymentMethodController extends Controller
 
         $method->update($data);
 
+        \Illuminate\Support\Facades\Cache::forget('payment_methods');
+
         return response()->json(['success' => true, 'data' => $method]);
     }
 
@@ -91,6 +97,8 @@ class PaymentMethodController extends Controller
         }
         
         $method->delete();
+
+        \Illuminate\Support\Facades\Cache::forget('payment_methods');
 
         return response()->json(['success' => true, 'message' => 'تم الحذف بنجاح']);
     }

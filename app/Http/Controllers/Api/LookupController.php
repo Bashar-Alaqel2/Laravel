@@ -9,6 +9,7 @@ use App\Models\Region;
 use App\Models\Street;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class LookupController extends Controller
 {
@@ -17,52 +18,69 @@ class LookupController extends Controller
     // =======================================
     public function getScreenTypes()
     {
-        return response()->json(ScreenType::all(), 200);
+        return response()->json(Cache::remember('lookup_screen_types', 86400, function () {
+            return ScreenType::all();
+        }), 200);
     }
 
     public function getGovernorates()
     {
-        return response()->json(Governorate::all(), 200);
+        return response()->json(Cache::remember('lookup_governorates', 86400, function () {
+            return Governorate::all();
+        }), 200);
     }
 
     public function getRegions($gov_id)
     {
-        return response()->json(Region::where('gov_id', $gov_id)->get(), 200);
+        return response()->json(Cache::remember("lookup_regions_gov_{$gov_id}", 86400, function () use ($gov_id) {
+            return Region::where('gov_id', $gov_id)->get();
+        }), 200);
     }
 
     public function getAllRegions()
     {
-        return response()->json(Region::with('governorate')->get(), 200);
+        return response()->json(Cache::remember('lookup_all_regions', 86400, function () {
+            return Region::with('governorate')->get();
+        }), 200);
     }
 
     public function getStreets($region_id)
     {
         // نجلب الشوارع مع المنطقة والمحافظة التابعة لها ليكون الاسم واضحاً
-        return response()->json(Street::with('region.governorate')->where('region_id', $region_id)->get(), 200);
+        return response()->json(Cache::remember("lookup_streets_reg_{$region_id}", 86400, function () use ($region_id) {
+            return Street::with('region.governorate')->where('region_id', $region_id)->get();
+        }), 200);
     }
 
     public function getAllStreets()
     {
-        return response()->json(Street::with('region.governorate')->get(), 200);
+        return response()->json(Cache::remember('lookup_all_streets', 86400, function () {
+            return Street::with('region.governorate')->get();
+        }), 200);
     }
 
     public function getCategories()
     {
-        return response()->json(Category::all(), 200);
+        return response()->json(Cache::remember('lookup_categories', 86400, function () {
+            return Category::all();
+        }), 200);
     }
 
     public function getUsersByRole($roleName)
     {
-        $users = \App\Models\User::with('role')->whereHas('role', function($query) use ($roleName) {
-            $query->where('role_name', $roleName);
-        })->get(['user_id', 'role_id', 'full_name', 'email']);
-        
-        return response()->json($users, 200);
+        $cacheKey = 'lookup_users_role_' . strtolower($roleName);
+        return response()->json(Cache::remember($cacheKey, 3600, function () use ($roleName) {
+            return \App\Models\User::with('role')->whereHas('role', function($query) use ($roleName) {
+                $query->where('role_name', $roleName);
+            })->get(['user_id', 'role_id', 'full_name', 'email']);
+        }), 200);
     }
 
     public function getRoles()
     {
-        return response()->json(\App\Models\Role::all(), 200);
+        return response()->json(Cache::remember('lookup_roles', 86400, function () {
+            return \App\Models\Role::all();
+        }), 200);
     }
 
     // =======================================
@@ -85,6 +103,7 @@ class LookupController extends Controller
         ]);
 
         $type = ScreenType::create($request->all());
+        Cache::forget('lookup_screen_types');
         return response()->json(['message' => 'تم إضافة نوع الشاشة بنجاح', 'data' => $type], 201);
     }
 
@@ -96,6 +115,7 @@ class LookupController extends Controller
         $request->validate(['name' => 'required|string|max:100|unique:governorates,name']);
         
         $gov = Governorate::create($request->only('name'));
+        Cache::forget('lookup_governorates');
         return response()->json(['message' => 'تم إضافة المحافظة بنجاح', 'data' => $gov], 201);
     }
 
@@ -110,6 +130,8 @@ class LookupController extends Controller
         ]);
         
         $region = Region::create($request->only(['name', 'gov_id']));
+        Cache::forget('lookup_all_regions');
+        Cache::forget('lookup_regions_gov_' . $region->gov_id);
         return response()->json(['message' => 'تم إضافة المنطقة بنجاح', 'data' => $region], 201);
     }
 
@@ -124,6 +146,8 @@ class LookupController extends Controller
         ]);
         
         $street = Street::create($request->only(['name', 'region_id']));
+        Cache::forget('lookup_all_streets');
+        Cache::forget('lookup_streets_reg_' . $street->region_id);
         return response()->json(['message' => 'تم إضافة الشارع بنجاح', 'data' => $street], 201);
     }
 
@@ -154,6 +178,12 @@ class LookupController extends Controller
             'region_id' => $region->region_id
         ]);
 
+        Cache::forget('lookup_governorates');
+        Cache::forget('lookup_all_regions');
+        Cache::forget('lookup_all_streets');
+        Cache::forget('lookup_regions_gov_' . $gov->gov_id);
+        Cache::forget('lookup_streets_reg_' . $region->region_id);
+
         return response()->json([
             'message' => 'تم إضافة الموقع بالكامل بنجاح',
             'data' => [
@@ -174,11 +204,15 @@ class LookupController extends Controller
         $gov = Governorate::findOrFail($id);
         $request->validate(['name' => 'required|string|max:100|unique:governorates,name,'.$id.',gov_id']);
         $gov->update($request->only('name'));
+        Cache::forget('lookup_governorates');
         return response()->json(['message' => 'تم تعديل المحافظة بنجاح', 'data' => $gov], 200);
     }
     public function destroyGovernorate(Request $request, $id) {
         if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
         Governorate::findOrFail($id)->delete(); // الحذف سيمسح كل المناطق والشوارع التابعة بفضل Cascade
+        Cache::forget('lookup_governorates');
+        Cache::forget('lookup_all_regions');
+        Cache::forget('lookup_all_streets');
         return response()->json(['message' => 'تم حذف المحافظة ومحتوياتها بنجاح'], 200);
     }
 
@@ -191,11 +225,18 @@ class LookupController extends Controller
             'gov_id' => 'required|exists:governorates,gov_id'
         ]);
         $region->update($request->only(['name', 'gov_id']));
+        Cache::forget('lookup_all_regions');
+        Cache::forget('lookup_regions_gov_' . $region->gov_id);
         return response()->json(['message' => 'تم تعديل المنطقة بنجاح', 'data' => $region], 200);
     }
     public function destroyRegion(Request $request, $id) {
         if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
-        Region::findOrFail($id)->delete();
+        $region = Region::findOrFail($id);
+        $gov_id = $region->gov_id;
+        $region->delete();
+        Cache::forget('lookup_all_regions');
+        Cache::forget('lookup_regions_gov_' . $gov_id);
+        Cache::forget('lookup_all_streets');
         return response()->json(['message' => 'تم حذف المنطقة بنجاح'], 200);
     }
 
@@ -208,11 +249,17 @@ class LookupController extends Controller
             'region_id' => 'required|exists:regions,region_id'
         ]);
         $street->update($request->only(['name', 'region_id']));
+        Cache::forget('lookup_all_streets');
+        Cache::forget('lookup_streets_reg_' . $street->region_id);
         return response()->json(['message' => 'تم تعديل الشارع بنجاح', 'data' => $street], 200);
     }
     public function destroyStreet(Request $request, $id) {
         if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
-        Street::findOrFail($id)->delete();
+        $street = Street::findOrFail($id);
+        $region_id = $street->region_id;
+        $street->delete();
+        Cache::forget('lookup_all_streets');
+        Cache::forget('lookup_streets_reg_' . $region_id);
         return response()->json(['message' => 'تم حذف الشارع بنجاح'], 200);
     }
 
@@ -221,6 +268,7 @@ class LookupController extends Controller
     {
         $request->validate(['role_name' => 'required|string|max:50|unique:roles,role_name']);
         $role = \App\Models\Role::create(['role_name' => $request->role_name]);
+        Cache::forget('lookup_roles');
         return response()->json(['message' => 'تم إضافة الدور بنجاح', 'data' => $role], 201);
     }
 
@@ -244,6 +292,8 @@ class LookupController extends Controller
             'max_size'      => $request->max_size,
         ]);
 
+        Cache::forget('lookup_categories');
+
         return response()->json(['message' => 'تم إضافة التصنيف بنجاح', 'data' => $category], 201);
     }
 
@@ -252,6 +302,9 @@ class LookupController extends Controller
         $role = \App\Models\Role::findOrFail($id);
         $request->validate(['role_name' => 'required|string|max:50|unique:roles,role_name,'.$id.',role_id']);
         $role->update(['role_name' => $request->role_name]);
+        Cache::forget('lookup_roles');
+        // Clear all role-specific users caches
+        Cache::forget('lookup_users_role_' . strtolower($role->role_name));
         return response()->json(['message' => 'تم تعديل الدور بنجاح', 'data' => $role], 200);
     }
 
@@ -270,7 +323,10 @@ class LookupController extends Controller
             return response()->json(['message' => 'لا يمكن حذف هذا الدور لأن هناك مستخدمين مرتبطين به. يرجى تغيير أدوارهم أولاً.'], 400);
         }
 
+        $roleName = strtolower($role->role_name);
         $role->delete();
+        Cache::forget('lookup_roles');
+        Cache::forget('lookup_users_role_' . $roleName);
         return response()->json(['message' => 'تم حذف الدور بنجاح'], 200);
     }
 
@@ -295,6 +351,8 @@ class LookupController extends Controller
             'max_size'      => $request->max_size,
         ]);
 
+        Cache::forget('lookup_categories');
+
         return response()->json(['message' => 'تم تحديث التصنيف بنجاح', 'data' => $category], 200);
     }
 
@@ -306,6 +364,8 @@ class LookupController extends Controller
 
         $category = \App\Models\Category::findOrFail($id);
         $category->delete();
+
+        Cache::forget('lookup_categories');
 
         return response()->json(['message' => 'تم حذف التصنيف بنجاح'], 200);
     }

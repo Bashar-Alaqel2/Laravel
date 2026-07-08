@@ -14,9 +14,13 @@ class FrequencyPackageController extends Controller
      */
     public function index()
     {
+        $packages = \Illuminate\Support\Facades\Cache::remember('frequency_packages', 86400, function () {
+            return FrequencyPackage::orderBy('display_interval', 'desc')->get();
+        });
+
         return response()->json([
             'success' => true,
-            'data' => FrequencyPackage::orderBy('display_interval', 'desc')->get()
+            'data' => $packages
         ], 200);
     }
 
@@ -49,6 +53,8 @@ class FrequencyPackageController extends Controller
             'display_interval' => $request->display_interval,
             'price_multiplier' => $request->price_multiplier,
         ]);
+
+        \Illuminate\Support\Facades\Cache::forget('frequency_packages');
 
         return response()->json([
             'success' => true,
@@ -101,6 +107,8 @@ class FrequencyPackageController extends Controller
             'price_multiplier' => $request->price_multiplier,
         ]);
 
+        \Illuminate\Support\Facades\Cache::forget('frequency_packages');
+
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث باقة التكرار بنجاح.',
@@ -119,6 +127,8 @@ class FrequencyPackageController extends Controller
 
         $package = FrequencyPackage::findOrFail($id);
         $package->delete();
+
+        \Illuminate\Support\Facades\Cache::forget('frequency_packages');
 
         return response()->json([
             'success' => true,
