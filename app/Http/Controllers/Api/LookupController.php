@@ -260,9 +260,14 @@ class LookupController extends Controller
         $role = \App\Models\Role::findOrFail($id);
         
         // منع حذف الأدوار الأساسية لسلامة النظام
-        $protectedRoles = ['SuperAdmin', 'Advertiser', 'ScreenOwner', 'Maintenance'];
+        $protectedRoles = ['SuperAdmin', 'Advertiser', 'ScreenOwner', 'Maintenance', 'Secretary', 'Admin'];
         if (in_array($role->role_name, $protectedRoles)) {
             return response()->json(['message' => 'لا يمكن حذف الأدوار الأساسية للنظام!'], 403);
+        }
+
+        // التحقق من عدم وجود مستخدمين مرتبطين بهذا الدور
+        if ($role->users()->exists()) {
+            return response()->json(['message' => 'لا يمكن حذف هذا الدور لأن هناك مستخدمين مرتبطين به. يرجى تغيير أدوارهم أولاً.'], 400);
         }
 
         $role->delete();

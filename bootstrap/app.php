@@ -15,6 +15,15 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'عفواً، هذا السجل غير موجود أو تم حذفه مسبقاً.'
+                ], 404);
+            }
+        });
+
         $exceptions->shouldRenderJsonWhen(function ($request, \Throwable $e) {
             if ($request->is('api/*')) {
                 return true;

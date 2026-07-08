@@ -47,10 +47,13 @@ class AuthController extends Controller
 
         // 3. البحث عن رقم صلاحية "معلن" لإعطائها للمستخدم الجديد تلقائياً
         $advertiserRole = Role::where('role_name', 'Advertiser')->first();
+        if (!$advertiserRole) {
+            $advertiserRole = Role::create(['role_name' => 'Advertiser']);
+        }
 
         // 4. إدخال البيانات في قاعدة البيانات
         $user = User::create([
-            'role_id'       => $advertiserRole ? $advertiserRole->role_id : null,
+            'role_id'       => $advertiserRole->role_id,
             'full_name'     => $request->full_name,
             'email'         => $request->email,
             'phone'         => $request->phone,
