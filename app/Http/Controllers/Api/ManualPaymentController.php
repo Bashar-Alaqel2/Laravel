@@ -66,7 +66,7 @@ class ManualPaymentController extends Controller
                 'user_id' => $admin->user_id,
                 'title' => json_encode(['key' => 'notif_title_manual_payment']), // يمكنك إضافة هذه المفاتيح لاحقاً للترجمة
                 'message' => json_encode(['key' => 'notif_msg_manual_payment', 'args' => ['ad_id' => $ad->ad_id, 'method' => $paymentMethod->name]]),
-                'is_read' => 'false',
+                'is_read' => false,
             ]);
         }
 

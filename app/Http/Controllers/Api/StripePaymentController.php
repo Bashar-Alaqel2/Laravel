@@ -93,7 +93,7 @@ class StripePaymentController extends Controller
                 'user_id' => $ad->advertiser_id,
                 'title' => json_encode(['key' => 'notif_title_payment_confirmed']),
                 'message' => json_encode(['key' => 'notif_msg_payment_confirmed', 'args' => ['amount' => $ledger->amount, 'title' => $ad->title]]),
-                'is_read' => 'false',
+                'is_read' => false,
             ]);
 
             // إرسال إشعار للإدارة
@@ -106,7 +106,7 @@ class StripePaymentController extends Controller
                     'user_id' => $admin->user_id,
                     'title' => json_encode(['key' => 'notif_title_ad_paid_online']),
                     'message' => json_encode(['key' => 'notif_msg_ad_paid_online', 'args' => ['title' => $ad->title]]),
-                    'is_read' => 'false',
+                    'is_read' => false,
                 ]);
             }
 

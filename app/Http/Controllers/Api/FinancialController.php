@@ -212,7 +212,7 @@ class FinancialController extends Controller
                         'user_id' => $ad->advertiser_id,
                         'title' => json_encode(['key' => 'notif_title_payment_confirmed']),
                         'message' => json_encode(['key' => 'notif_msg_payment_confirmed', 'args' => ['amount' => $ledger->amount, 'title' => $ad->title]]),
-                        'is_read' => 'false',
+                        'is_read' => false,
                     ]);
 
                     // 3. توزيع الأرباح

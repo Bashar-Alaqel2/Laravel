@@ -38,7 +38,7 @@ class PlaylistController extends Controller
             ->whereIn('status', ['Active', 'Approved'])
             ->whereNull('advertisements.deleted_at')
             ->whereHas('schedules', function ($q) use ($nowDate, $nowTime) {
-                $q->where('is_active', 'true')
+                $q->where('is_active', true)
                   ->where('start_date', '<=', $nowDate)
                   ->where('end_date', '>=', $nowDate);
             })

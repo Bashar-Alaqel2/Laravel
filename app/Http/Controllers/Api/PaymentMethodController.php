@@ -16,7 +16,7 @@ class PaymentMethodController extends Controller
         
         // إذا لم يكن أدمن، يرى فقط النشط
         if (!$request->user()->can('manage_all')) {
-            $query->where('is_active', 'true');
+            $query->where('is_active', true);
         }
 
         return response()->json(['success' => true, 'data' => $query->get()]);
@@ -43,7 +43,7 @@ class PaymentMethodController extends Controller
             'account_details'        => $request->account_details,
             'stripe_publishable_key' => !empty(trim($request->stripe_publishable_key)) ? trim($request->stripe_publishable_key) : null,
             'stripe_secret_key'      => !empty(trim($request->stripe_secret_key)) ? trim($request->stripe_secret_key) : null,
-            'is_active'              => \Illuminate\Support\Facades\DB::raw('true'),
+            'is_active'              => \Illuminate\Support\Facades\DB::raw(true),
         ]);
 
         return response()->json(['success' => true, 'data' => $method], 201);
@@ -63,7 +63,7 @@ class PaymentMethodController extends Controller
         
         $data = $request->only(['name', 'account_details']);
         if ($request->has('is_active')) {
-            $data['is_active'] = $request->boolean('is_active') ? \Illuminate\Support\Facades\DB::raw('true') : \Illuminate\Support\Facades\DB::raw('false');
+            $data['is_active'] = $request->boolean('is_active') ? \Illuminate\Support\Facades\DB::raw(true) : \Illuminate\Support\Facades\DB::raw(false);
         }
         
         if ($request->has('stripe_publishable_key')) {

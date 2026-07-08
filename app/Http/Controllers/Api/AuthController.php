@@ -68,7 +68,7 @@ class AuthController extends Controller
                 'user_id' => $admin->user_id,
                 'title' => json_encode(['key' => 'notif_title_new_user']),
                 'message' => json_encode(['key' => 'notif_msg_new_user', 'args' => ['name' => $user->full_name]]),
-                'is_read' => 'false',
+                'is_read' => false,
             ]);
         }
 

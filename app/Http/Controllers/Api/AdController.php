@@ -21,7 +21,7 @@ class AdController extends Controller
         // الإدارة والسكرتارية يرون كل الإعلانات مع الشاشات والمواقع
         if ($user->can('manage_all') || $user->can('review_ads')) {
             $ads = Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])
-                                ->where('is_deleted', 'false')
+                                ->where('is_deleted', false)
                                 ->get();
             return response()->json(['success' => true, 'data' => $ads], 200);
         }
@@ -30,7 +30,7 @@ class AdController extends Controller
         if ($user->can('view_own_reports')) {
             $ads = Advertisement::with(['screens', 'category'])
                                 ->where('advertiser_id', $user->user_id)
-                                ->where('is_deleted', 'false')
+                                ->where('is_deleted', false)
                                 ->get();
             return response()->json(['success' => true, 'data' => $ads], 200);
         }
@@ -93,7 +93,7 @@ class AdController extends Controller
                     ->whereHas('advertisement.screens', function($q) use ($screenId) {
                         $q->where('screens.screen_id', $screenId);
                     })
-                    ->where('is_active', 'true')
+                    ->where('is_active', true)
                     ->where('start_date', '<=', $request->end_date)
                     ->where('end_date', '>=', $request->start_date)
                     ->where(function ($query) use ($reqStartTime, $reqEndTime) {
@@ -203,7 +203,7 @@ class AdController extends Controller
                 'end_time'          => $request->target_end_time,
                 'interval_minutes'  => $request->interval_minutes,
                 'allocated_seconds' => $allocatedSeconds,
-                'is_active' => 'true',
+                'is_active' => true,
             ]);
 
             // تسجيل إيصال الدفع إن وجد وتحويله إلى Base64 لتخزينه في قاعدة البيانات
@@ -231,7 +231,7 @@ class AdController extends Controller
                     'user_id' => $ad->advertiser_id,
                     'title' => json_encode(['key' => 'notif_title_new_ad_pending']),
                     'message' => json_encode(['key' => 'notif_msg_new_ad_pending', 'args' => ['title' => $ad->title]]),
-                    'is_read' => 'false',
+                    'is_read' => false,
                 ]);
 
                 $admins = \App\Models\User::whereHas('role', function($q) {
@@ -243,7 +243,7 @@ class AdController extends Controller
                         'user_id' => $admin->user_id,
                         'title' => json_encode(['key' => 'notif_title_ad_pending_review']),
                         'message' => json_encode(['key' => 'notif_msg_ad_pending_review', 'args' => ['advertiser' => $advertiser->full_name, 'title' => $ad->title]]),
-                        'is_read' => 'false',
+                        'is_read' => false,
                     ]);
 
                     if ($request->hasFile('receipt')) {
@@ -251,7 +251,7 @@ class AdController extends Controller
                             'user_id' => $admin->user_id,
                             'title' => json_encode(['key' => 'notif_title_new_receipt']),
                             'message' => json_encode(['key' => 'notif_msg_new_receipt', 'args' => ['cost' => $ad->total_cost, 'advertiser' => $advertiser->full_name]]),
-                            'is_read' => 'false',
+                            'is_read' => false,
                         ]);
                     }
                 }
@@ -304,7 +304,7 @@ class AdController extends Controller
                 'user_id' => $ad->advertiser_id,
                 'title' => json_encode(['key' => 'notif_title_ad_approved_for_payment']),
                 'message' => json_encode(['key' => 'notif_msg_ad_approved_for_payment', 'args' => ['title' => $ad->title]]),
-                'is_read' => 'false',
+                'is_read' => false,
             ]);
         }
 
@@ -314,7 +314,7 @@ class AdController extends Controller
                 'user_id' => $ad->advertiser_id,
                 'title' => json_encode(['key' => 'notif_title_ad_approved']),
                 'message' => json_encode(['key' => 'notif_msg_ad_approved', 'args' => ['title' => $ad->title]]),
-                'is_read' => 'false',
+                'is_read' => false,
             ]);
 
             // إرسال إشعار لملاك الشاشات المرتبطة بالإعلان
@@ -325,7 +325,7 @@ class AdController extends Controller
                         'user_id' => $screen->owner_id,
                         'title' => json_encode(['key' => 'notif_title_ad_scheduled']),
                         'message' => json_encode(['key' => 'notif_msg_ad_scheduled', 'args' => ['title' => $ad->title, 'screen' => $screen->screen_name, 'start' => $schedule->start_date]]),
-                        'is_read' => 'false',
+                        'is_read' => false,
                     ]);
                 }
             }
@@ -334,7 +334,7 @@ class AdController extends Controller
                 'user_id' => $ad->advertiser_id,
                 'title' => json_encode(['key' => 'notif_title_ad_rejected']),
                 'message' => json_encode(['key' => 'notif_msg_ad_rejected', 'args' => ['title' => $ad->title, 'reason' => $ad->rejection_reason]]),
-                'is_read' => 'false',
+                'is_read' => false,
             ]);
         }
 
@@ -361,7 +361,7 @@ class AdController extends Controller
         }
 
         // الحذف المنطقي (Soft Delete)
-        $ad->is_deleted = \Illuminate\Support\Facades\DB::raw('true');
+        $ad->is_deleted = \Illuminate\Support\Facades\DB::raw(true);
         $ad->deleted_at = now();
         $ad->save();
 
@@ -409,7 +409,7 @@ class AdController extends Controller
                 ->whereHas('advertisement.screens', function ($q) use ($screenId) {
                     $q->where('screens.screen_id', $screenId);
                 })
-                ->where('is_active', 'true')
+                ->where('is_active', true)
                 ->where('start_date', '<=', $request->end_date)
                 ->where('end_date',   '>=', $request->start_date)
                 ->where(function ($q) use ($reqStartTime, $reqEndTime) {
