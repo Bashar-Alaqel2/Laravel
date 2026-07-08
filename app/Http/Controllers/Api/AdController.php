@@ -20,7 +20,7 @@ class AdController extends Controller
 
         // الإدارة والسكرتارية يرون كل الإعلانات مع الشاشات والمواقع
         if ($user->can('manage_all') || $user->can('review_ads')) {
-            $query = Advertisement::where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'));
+            $query = Advertisement::where('is_deleted', 0);
             
             $stats = [
                 'total' => (clone $query)->count(),
@@ -55,7 +55,7 @@ class AdController extends Controller
         // المعلن يرى إعلاناته فقط
         if ($user->can('view_own_reports')) {
             $query = Advertisement::where('advertiser_id', $user->user_id)
-                                  ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'));
+                                  ->where('is_deleted', 0);
             
             $stats = [
                 'total' => (clone $query)->count(),
@@ -145,7 +145,7 @@ class AdController extends Controller
                     ->whereHas('advertisement.screens', function($q) use ($screenId) {
                         $q->where('screens.screen_id', $screenId);
                     })
-                    ->where('is_active', \Illuminate\Support\Facades\DB::raw('true'))
+                    ->where('is_active', 1)
                     ->where('start_date', '<=', $request->end_date)
                     ->where('end_date', '>=', $request->start_date)
                     ->where(function ($query) use ($reqStartTime, $reqEndTime) {
@@ -413,7 +413,7 @@ class AdController extends Controller
         }
 
         // الحذف المنطقي (Soft Delete)
-        $ad->is_deleted = \Illuminate\Support\Facades\DB::raw(true);
+        $ad->is_deleted = 1;
         $ad->deleted_at = now();
         $ad->save();
 
@@ -461,7 +461,7 @@ class AdController extends Controller
                 ->whereHas('advertisement.screens', function ($q) use ($screenId) {
                     $q->where('screens.screen_id', $screenId);
                 })
-                ->where('is_active', \Illuminate\Support\Facades\DB::raw('true'))
+                ->where('is_active', 1)
                 ->where('start_date', '<=', $request->end_date)
                 ->where('end_date',   '>=', $request->start_date)
                 ->where(function ($q) use ($reqStartTime, $reqEndTime) {
