@@ -31,7 +31,7 @@ class AdController extends Controller
             ];
 
             $ads = $query->with(['advertiser', 'screens.street.region.governorate', 'category'])
-                         ->orderBy('created_at', 'desc')
+                         ->orderBy('uploaded_at', 'desc')
                          ->paginate(50);
             
             foreach ($ads->items() as $ad) {
@@ -66,7 +66,7 @@ class AdController extends Controller
             ];
 
             $ads = $query->with(['screens', 'category'])
-                         ->orderBy('created_at', 'desc')
+                         ->orderBy('uploaded_at', 'desc')
                          ->paginate(50);
             
             foreach ($ads->items() as $ad) {
