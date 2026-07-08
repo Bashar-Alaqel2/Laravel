@@ -26,7 +26,7 @@ class Advertisement extends Model {
     ];
 
     protected $casts = [
-        'is_deleted' => 'boolean',
+        'is_deleted' => \App\Casts\SmallIntBooleanCast::class,
     ];
 
     public function advertiser() {

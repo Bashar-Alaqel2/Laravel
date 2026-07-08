@@ -9,7 +9,7 @@ class UserSession extends Model {
     protected $fillable = ['user_id', 'device_name', 'device_id', 'ip_address', 'fcm_token', 'last_active', 'is_revoked'];
 
     protected $casts = [
-        'is_revoked' => 'boolean',
+        'is_revoked' => \App\Casts\SmallIntBooleanCast::class,
     ];
 
     public function setIsRevokedAttribute($value) {

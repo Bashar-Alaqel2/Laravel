@@ -9,7 +9,7 @@ class Notification extends Model {
     protected $fillable = ['user_id', 'title', 'message', 'is_read'];
 
     protected $casts = [
-        'is_read' => 'boolean',
+        'is_read' => \App\Casts\SmallIntBooleanCast::class,
     ];
 
     public function user() {

@@ -12,6 +12,6 @@ class PaymentMethod extends Model
     protected $fillable = ['name', 'account_details', 'is_active', 'stripe_publishable_key', 'stripe_secret_key'];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active' => \App\Casts\SmallIntBooleanCast::class,
     ];
 }

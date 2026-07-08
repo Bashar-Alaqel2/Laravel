@@ -9,7 +9,7 @@ class AdSchedule extends Model {
     protected $fillable = ['ad_id', 'start_date', 'end_date', 'start_time', 'end_time', 'interval_minutes', 'allocated_seconds', 'is_active'];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active' => \App\Casts\SmallIntBooleanCast::class,
     ];
 
     public function advertisement() {
