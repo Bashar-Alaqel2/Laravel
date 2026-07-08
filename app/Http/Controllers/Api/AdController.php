@@ -20,29 +20,71 @@ class AdController extends Controller
 
         // الإدارة والسكرتارية يرون كل الإعلانات مع الشاشات والمواقع
         if ($user->can('manage_all') || $user->can('review_ads')) {
-            $ads = Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])
-                                ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
-                                ->get();
-            $ads->each(function($ad) {
+            $query = Advertisement::where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'));
+            
+            $stats = [
+                'total' => (clone $query)->count(),
+                'active' => (clone $query)->where('status', 'Active')->count(),
+                'pending' => (clone $query)->where('status', 'Pending')->count(),
+                'rejected' => (clone $query)->where('status', 'Rejected')->count(),
+                'paused' => (clone $query)->where('status', 'Paused')->count(),
+            ];
+
+            $ads = $query->with(['advertiser', 'screens.street.region.governorate', 'category'])
+                         ->orderBy('created_at', 'desc')
+                         ->paginate(50);
+            
+            foreach ($ads->items() as $ad) {
                 if($ad->screens) {
                     $ad->screens->each->makeHidden(['image_path']);
                 }
-            });
-            return response()->json(['success' => true, 'data' => $ads], 200);
+            }
+
+            return response()->json([
+                'success' => true, 
+                'data' => $ads->items(),
+                'stats' => $stats,
+                'pagination' => [
+                    'current_page' => $ads->currentPage(),
+                    'last_page' => $ads->lastPage(),
+                    'total' => $ads->total()
+                ]
+            ], 200);
         }
 
         // المعلن يرى إعلاناته فقط
         if ($user->can('view_own_reports')) {
-            $ads = Advertisement::with(['screens', 'category'])
-                                ->where('advertiser_id', $user->user_id)
-                                ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
-                                ->get();
-            $ads->each(function($ad) {
+            $query = Advertisement::where('advertiser_id', $user->user_id)
+                                  ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'));
+            
+            $stats = [
+                'total' => (clone $query)->count(),
+                'active' => (clone $query)->where('status', 'Active')->count(),
+                'pending' => (clone $query)->where('status', 'Pending')->count(),
+                'rejected' => (clone $query)->where('status', 'Rejected')->count(),
+                'paused' => (clone $query)->where('status', 'Paused')->count(),
+            ];
+
+            $ads = $query->with(['screens', 'category'])
+                         ->orderBy('created_at', 'desc')
+                         ->paginate(50);
+            
+            foreach ($ads->items() as $ad) {
                 if($ad->screens) {
                     $ad->screens->each->makeHidden(['image_path']);
                 }
-            });
-            return response()->json(['success' => true, 'data' => $ads], 200);
+            }
+
+            return response()->json([
+                'success' => true, 
+                'data' => $ads->items(),
+                'stats' => $stats,
+                'pagination' => [
+                    'current_page' => $ads->currentPage(),
+                    'last_page' => $ads->lastPage(),
+                    'total' => $ads->total()
+                ]
+            ], 200);
         }
 
         return response()->json(['success' => false, 'message' => 'ليس لديك صلاحية لرؤية الإعلانات.'], 403);
