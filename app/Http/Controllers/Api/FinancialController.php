@@ -136,6 +136,16 @@ class FinancialController extends Controller
             $query->where('transaction_type', $request->type);
         }
 
+        // تحديد الأعمدة المطلوبة وتجاهل receipt_path لأنه قد يحتوي على Base64 ضخم جداً يبطئ النظام
+        $query->select([
+            'ledger_id', 'advertisement_id', 'screen_id', 'user_id', 
+            'transaction_type', 'amount', 'payment_method', 'reference_number', 
+            'status', 'notes', 'created_at', 'updated_at'
+        ]);
+        
+        // إضافة حقل وهمي يخبر الواجهة ما إذا كان هناك صورة مرفقة أم لا
+        $query->addSelect(\Illuminate\Support\Facades\DB::raw('CASE WHEN receipt_path IS NOT NULL THEN 1 ELSE 0 END as has_receipt'));
+
         $ledger = $query->orderBy('created_at', 'desc')->get();
         
         $totalPayments = $ledger->whereIn('transaction_type', ['payment', 'payment_in'])->where('status', 'completed')->sum('amount');
@@ -225,7 +235,67 @@ class FinancialController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'خطأ: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    // ==========================================
+    // 6. رفض دفعة (تغيير الحالة من Pending إلى Rejected)
+    // ==========================================
+    public function rejectPayment(Request $request, $id)
+    {
+        try {
+            DB::beginTransaction();
+
+            $ledger = FinancialLedger::findOrFail($id);
+            
+            if ($ledger->transaction_type !== 'payment_pending') {
+                return response()->json(['success' => false, 'message' => 'هذه العملية ليست دفعة معلقة.'], 400);
+            }
+
+            // 1. تحديث حالة القيد المالي
+            $ledger->update([
+                'status' => 'rejected'
+            ]);
+
+            // 2. تحديث حالة الإعلان
+            if ($ledger->advertisement_id) {
+                $ad = Advertisement::find($ledger->advertisement_id);
+                if ($ad) {
+                    $ad->update(['payment_status' => 'unpaid']);
+                    
+                    // إرسال إشعار للمعلن
+                    \App\Models\Notification::create([
+                        'user_id' => $ad->advertiser_id,
+                        'title' => json_encode(['key' => 'notif_title_payment_rejected']),
+                        'message' => json_encode(['key' => 'notif_msg_payment_rejected', 'args' => ['title' => $ad->title]]),
+                        'is_read' => false,
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'تم رفض الدفعة بنجاح.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // ==========================================
+    // 7. جلب صورة السند فقط (لتحسين أداء النظام)
+    // ==========================================
+    public function getReceipt($id)
+    {
+        $ledger = FinancialLedger::findOrFail($id);
+        
+        if (!$ledger->receipt_path) {
+            return response()->json(['success' => false, 'message' => 'لا يوجد سند لهذه العملية.'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'receipt_path' => $ledger->receipt_path
+        ], 200);
     }
 }

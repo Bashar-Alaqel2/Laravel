@@ -50,11 +50,11 @@ class ManualPaymentController extends Controller
         $ledger = FinancialLedger::create([
             'advertisement_id' => $ad->ad_id,
             'user_id' => $request->user()->user_id,
-            'transaction_type' => 'Deposit',
+            'transaction_type' => 'payment_pending',
             'amount' => $ad->total_cost,
             'payment_method' => $paymentMethod->name,
             'receipt_path' => $imagePath,
-            'status' => 'Pending'
+            'status' => 'pending'
         ]);
 
         // 4. إرسال إشعار للمدير بوجود حوالة تحتاج إلى مراجعة
