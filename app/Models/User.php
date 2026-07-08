@@ -67,18 +67,6 @@ class User extends Authenticatable
         return $this->hasMany(Advertisement::class, 'advertiser_id', 'user_id');
     }
 
-    public function invoices() {
-        return $this->hasMany(Invoice::class, 'advertiser_id', 'user_id');
-    }
-
-    public function approvedTransactions() {
-        return $this->hasMany(Transaction::class, 'approved_by', 'user_id');
-    }
-
-    public function wallet() {
-        return $this->hasOne(Wallet::class, 'user_id', 'user_id');
-    }
-
     public function notifications() {
         return $this->hasMany(Notification::class, 'user_id', 'user_id');
     }

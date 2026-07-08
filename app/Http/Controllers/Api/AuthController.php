@@ -223,8 +223,7 @@ class AuthController extends Controller
         $hasActivity = $user->screens()->count() > 0 ||
                        $user->linkedScreens()->count() > 0 ||
                        $user->advertisements()->count() > 0 ||
-                       $user->invoices()->count() > 0 ||
-                       $user->wallet()->where('balance', '>', 0)->count() > 0;
+                       \App\Models\FinancialLedger::where('user_id', $user->user_id)->count() > 0;
 
         if (!$hasActivity) {
             // حذف نهائي (Hard Delete) إذا لم يكن لديه نشاط
