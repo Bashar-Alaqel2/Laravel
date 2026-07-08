@@ -9,8 +9,10 @@ use App\Models\AdScreen;
 use App\Models\PlaybackLog;
 use Illuminate\Support\Facades\DB;
 
-class ReportController extends Controller {
-    public function screenReport(Request $request) {
+class ReportController extends Controller
+{
+    public function screenReport(Request $request)
+    {
         $request->validate([
             'screen_id' => 'required|exists:screens,screen_id',
             'start_date' => 'required|date',
@@ -24,10 +26,10 @@ class ReportController extends Controller {
         $screen = Screen::with('street.region.governorate')->findOrFail($screenId);
 
         $user = $request->user();
-        
+
         // חماية تقارير الملاك
         if ($user && ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner'))) {
-            if ((int)$screen->owner_id !== (int)$user->user_id) {
+            if ((int) $screen->owner_id !== (int) $user->user_id) {
                 return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول لتقرير هذه الشاشة'], 403);
             }
         }
@@ -61,7 +63,7 @@ class ReportController extends Controller {
                 ->whereDate('played_at', '>=', $startDate)
                 ->whereDate('played_at', '<=', $endDate)
                 ->count();
-            
+
             $totalPlays += $playsCount;
 
             $adsData[] = [
@@ -88,7 +90,8 @@ class ReportController extends Controller {
         ]);
     }
 
-    public function maintenanceReport(Request $request) {
+    public function maintenanceReport(Request $request)
+    {
         $request->validate([
             'screen_id' => 'required|exists:screens,screen_id',
             'start_date' => 'required|date',
@@ -103,8 +106,8 @@ class ReportController extends Controller {
 
         // Fetch total ads count just for activity metric, no financial data
         $adsCount = Advertisement::whereHas('screens', function ($q) use ($screenId) {
-                $q->where('advertisement_screen.screen_id', $screenId);
-            })
+            $q->where('advertisement_screen.screen_id', $screenId);
+        })
             ->where('start_date', '<=', $endDate)
             ->where('end_date', '>=', $startDate)
             ->whereIn('status', ['Active', 'Completed', 'Paused'])

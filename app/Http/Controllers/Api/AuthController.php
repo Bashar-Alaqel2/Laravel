@@ -211,15 +211,34 @@ class AuthController extends Controller
     // حذف مستخدم
     public function destroyUser($id)
     {
-        $user = User::findOrFail($id);
+        // استخدام withTrashed للسماح بالوصول للمستخدمين الذين تم حذفهم لينة مسبقاً
+        $user = User::withTrashed()->findOrFail($id);
         
         // منع حذف النفس
         if ($user->user_id === auth()->id()) {
             return response()->json(['message' => 'لا يمكنك حذف حسابك الشخصي!'], 403);
         }
 
-        $user->delete();
-        return response()->json(['message' => 'تم حذف المستخدم بنجاح'], 200);
+        // التحقق من وجود نشاط أو بيانات مرتبطة بالمستخدم
+        $hasActivity = $user->screens()->count() > 0 ||
+                       $user->linkedScreens()->count() > 0 ||
+                       $user->advertisements()->count() > 0 ||
+                       $user->invoices()->count() > 0 ||
+                       $user->wallet()->where('balance', '>', 0)->count() > 0;
+
+        if (!$hasActivity) {
+            // حذف نهائي (Hard Delete) إذا لم يكن لديه نشاط
+            $user->forceDelete();
+            return response()->json(['message' => 'تم حذف المستخدم نهائياً من قاعدة البيانات نظراً لعدم وجود أي نشاط مرتبط به'], 200);
+        } else {
+            // إذا كان المستخدم محذوف لينة مسبقاً فلا داعي لحذفه مرة أخرى
+            if ($user->trashed()) {
+                return response()->json(['message' => 'هذا المستخدم محذوف مسبقاً (حذف آمن) ولا يمكن حذفه نهائياً لوجود بيانات مرتبطة به'], 200);
+            }
+            // حذف آمن (Soft Delete) لوجود نشاط
+            $user->delete();
+            return response()->json(['message' => 'تم حذف المستخدم (حذف آمن) للحفاظ على بياناته المالية والإعلانية المرتبطة'], 200);
+        }
     }
 
     // تحديث رتبة/دور المستخدم
