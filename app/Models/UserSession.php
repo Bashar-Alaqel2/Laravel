@@ -12,9 +12,7 @@ class UserSession extends Model {
         'is_revoked' => \App\Casts\SmallIntBooleanCast::class,
     ];
 
-    public function setIsRevokedAttribute($value) {
-        $this->attributes['is_revoked'] = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false';
-    }
+    // Removed setIsRevokedAttribute to prevent Postgres crash with smallint
 
     public function user() {
         return $this->belongsTo(User::class, 'user_id', 'user_id');

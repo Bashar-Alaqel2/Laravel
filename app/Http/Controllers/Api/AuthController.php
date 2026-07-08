@@ -285,33 +285,36 @@ class AuthController extends Controller
         $user = $request->user();
 
         if ($user->role?->role_name === 'SuperAdmin') {
-            $tokens = \Laravel\Sanctum\PersonalAccessToken::with('tokenable')->orderBy('last_used_at', 'desc')->get()->map(function ($token) use ($currentToken) {
-                $tokenUser = $token->tokenable;
+            $sessions = UserSession::with('user')->orderBy('last_active', 'desc')->get()->map(function ($session) use ($currentToken) {
+                $tokenId = str_replace('token_', '', $session->device_id);
                 return [
-                    'id' => $token->id,
-                    'device_name' => $token->name,
-                    'user_name' => $tokenUser ? $tokenUser->full_name : 'مستخدم محذوف',
-                    'last_used_at' => $token->last_used_at,
-                    'created_at' => $token->created_at,
-                    'is_current' => $token->id === $currentToken->id,
+                    'id' => $tokenId,
+                    'device_name' => $session->device_name,
+                    'ip_address' => $session->ip_address,
+                    'user_name' => $session->user ? $session->user->full_name : 'مستخدم محذوف',
+                    'last_used_at' => $session->last_active,
+                    'created_at' => $session->created_at,
+                    'is_current' => (int)$tokenId === (int)$currentToken->id,
                 ];
             });
         } else {
-            $tokens = $user->tokens()->orderBy('last_used_at', 'desc')->get()->map(function ($token) use ($currentToken, $user) {
+            $sessions = UserSession::where('user_id', $user->user_id)->orderBy('last_active', 'desc')->get()->map(function ($session) use ($currentToken, $user) {
+                $tokenId = str_replace('token_', '', $session->device_id);
                 return [
-                    'id' => $token->id,
-                    'device_name' => $token->name,
+                    'id' => $tokenId,
+                    'device_name' => $session->device_name,
+                    'ip_address' => $session->ip_address,
                     'user_name' => $user->full_name,
-                    'last_used_at' => $token->last_used_at,
-                    'created_at' => $token->created_at,
-                    'is_current' => $token->id === $currentToken->id,
+                    'last_used_at' => $session->last_active,
+                    'created_at' => $session->created_at,
+                    'is_current' => (int)$tokenId === (int)$currentToken->id,
                 ];
             });
         }
 
         return response()->json([
             'success' => true,
-            'data' => $tokens
+            'data' => $sessions
         ], 200);
     }    // تسجيل الخروج من كافة الأجهزة الأخرى للمستخدم الحالي (أو كافة الأجهزة في النظام للمدير العام)
     public function revokeOtherSessions(Request $request)
