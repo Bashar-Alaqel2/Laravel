@@ -1,11 +1,18 @@
 <?php
-require 'vendor/autoload.php';
-$app = require_once 'bootstrap/app.php';
+require "vendor/autoload.php";
+$app = require_once "bootstrap/app.php";
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
-try {
-    $ledger = App\Models\FinancialLedger::with(['user', 'advertisement', 'screen'])->orderBy('created_at', 'desc')->get();
-    echo "SUCCESS: " . count($ledger);
-} catch (\Exception $e) {
-    echo "ERROR: " . $e->getMessage();
-}
+
+$ads = App\Models\Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])
+    ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
+    ->get();
+
+$ads->each(function($ad) {
+    if($ad->screens) {
+        $ad->screens->each->makeHidden(['image_path']);
+    }
+});
+
+echo "Ads size: " . strlen($ads->toJson()) . "\n";
+

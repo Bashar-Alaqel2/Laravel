@@ -23,6 +23,11 @@ class AdController extends Controller
             $ads = Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])
                                 ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
                                 ->get();
+            $ads->each(function($ad) {
+                if($ad->screens) {
+                    $ad->screens->each->makeHidden(['image_path']);
+                }
+            });
             return response()->json(['success' => true, 'data' => $ads], 200);
         }
 
@@ -32,6 +37,11 @@ class AdController extends Controller
                                 ->where('advertiser_id', $user->user_id)
                                 ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
                                 ->get();
+            $ads->each(function($ad) {
+                if($ad->screens) {
+                    $ad->screens->each->makeHidden(['image_path']);
+                }
+            });
             return response()->json(['success' => true, 'data' => $ads], 200);
         }
 
