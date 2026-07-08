@@ -19,13 +19,13 @@ class AdvertiserController extends Controller
         // حساب الإعلانات النشطة
         $activeAdsCount = Advertisement::where('advertiser_id', $userId)
             ->where('status', 'Active')
-            ->where('is_deleted', false)
+            ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
             ->count();
 
         // حساب الإعلانات قيد المراجعة (Pending أو waiting_payment)
         $pendingAdsCount = Advertisement::where('advertiser_id', $userId)
             ->whereIn('status', ['Pending', 'waiting_payment'])
-            ->where('is_deleted', false)
+            ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
             ->count();
 
         // حساب إجمالي المصروفات (المدفوعات المعتمدة)
@@ -36,7 +36,7 @@ class AdvertiserController extends Controller
 
         // جلب آخر 5 إعلانات حديثة
         $recentAds = Advertisement::where('advertiser_id', $userId)
-            ->where('is_deleted', false)
+            ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
             ->orderBy('uploaded_at', 'desc')
             ->take(5)
             ->get();

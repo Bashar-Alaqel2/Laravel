@@ -18,7 +18,7 @@ class NotificationController extends Controller
             ->get();
 
         $unreadCount = Notification::where('user_id', $request->user()->user_id)
-            ->where('is_read', false)
+            ->where('is_read', \Illuminate\Support\Facades\DB::raw('false'))
             ->count();
 
         return response()->json([
@@ -60,7 +60,7 @@ class NotificationController extends Controller
     public function markAllAsRead(Request $request)
     {
         Notification::where('user_id', $request->user()->user_id)
-            ->where('is_read', false)
+            ->where('is_read', \Illuminate\Support\Facades\DB::raw('false'))
             ->update(['is_read' => true]);
 
         return response()->json([

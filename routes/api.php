@@ -27,7 +27,7 @@ Route::get('/tickers', function() { return response()->json(['success' => true, 
 Route::get('/ads-test', function() {
     return response()->json([
         'success' => true,
-        'data' => \App\Models\Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])->where('is_deleted', false)->get()
+        'data' => \App\Models\Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))->get()
     ]);
 });
 

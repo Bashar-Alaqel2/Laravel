@@ -21,7 +21,7 @@ class AdController extends Controller
         // الإدارة والسكرتارية يرون كل الإعلانات مع الشاشات والمواقع
         if ($user->can('manage_all') || $user->can('review_ads')) {
             $ads = Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])
-                                ->where('is_deleted', false)
+                                ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
                                 ->get();
             return response()->json(['success' => true, 'data' => $ads], 200);
         }
@@ -30,7 +30,7 @@ class AdController extends Controller
         if ($user->can('view_own_reports')) {
             $ads = Advertisement::with(['screens', 'category'])
                                 ->where('advertiser_id', $user->user_id)
-                                ->where('is_deleted', false)
+                                ->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))
                                 ->get();
             return response()->json(['success' => true, 'data' => $ads], 200);
         }
@@ -93,7 +93,7 @@ class AdController extends Controller
                     ->whereHas('advertisement.screens', function($q) use ($screenId) {
                         $q->where('screens.screen_id', $screenId);
                     })
-                    ->where('is_active', true)
+                    ->where('is_active', \Illuminate\Support\Facades\DB::raw('true'))
                     ->where('start_date', '<=', $request->end_date)
                     ->where('end_date', '>=', $request->start_date)
                     ->where(function ($query) use ($reqStartTime, $reqEndTime) {
@@ -409,7 +409,7 @@ class AdController extends Controller
                 ->whereHas('advertisement.screens', function ($q) use ($screenId) {
                     $q->where('screens.screen_id', $screenId);
                 })
-                ->where('is_active', true)
+                ->where('is_active', \Illuminate\Support\Facades\DB::raw('true'))
                 ->where('start_date', '<=', $request->end_date)
                 ->where('end_date',   '>=', $request->start_date)
                 ->where(function ($q) use ($reqStartTime, $reqEndTime) {
