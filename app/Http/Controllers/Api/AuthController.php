@@ -252,7 +252,48 @@ class AuthController extends Controller
         }
     }
 
-    // تحديث رتبة/دور المستخدم
+    // تعديل بيانات المستخدم
+    public function updateUser(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'full_name' => 'required|string|max:100',
+            'email'     => 'required|string|email|max:150|unique:users,email,' . $id . ',user_id',
+            'phone'     => 'nullable|string|max:20|unique:users,phone,' . $id . ',user_id',
+            'location'  => 'nullable|string|max:100',
+            'password'  => 'nullable|string|min:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $request->only(['full_name', 'email', 'phone', 'location']);
+        if ($request->filled('password')) {
+            $data['password_hash'] = Hash::make($request->password);
+        }
+
+        $user->update($data);
+
+        return response()->json(['message' => 'تم تحديث بيانات المستخدم بنجاح', 'data' => $user], 200);
+    }
+
+    // تعديل حالة حساب المستخدم (تفعيل/إيقاف)
+    public function updateUserStatus(Request $request, $id)
+    {
+        $request->validate([
+            'account_status' => 'required|in:Active,Suspended'
+        ]);
+
+        $user = User::findOrFail($id);
+        $user->account_status = $request->account_status;
+        $user->save();
+
+        return response()->json(['message' => 'تم تحديث حالة الحساب بنجاح', 'data' => $user], 200);
+    }
+
+    // تعديل دور المستخدم (صلاحيته)
     public function updateUserRole(Request $request, $id)
     {
         $request->validate([
