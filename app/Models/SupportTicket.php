@@ -11,6 +11,7 @@ class SupportTicket extends Model
 
     protected $fillable = [
         'user_id',
+        'screen_id',
         'subject',
         'category',
         'priority',
@@ -23,6 +24,11 @@ class SupportTicket extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
+    }
+
+    public function screen()
+    {
+        return $this->belongsTo(Screen::class, 'screen_id', 'screen_id');
     }
 
     public function getCreatedAtHumanAttribute()

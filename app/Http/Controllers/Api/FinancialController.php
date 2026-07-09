@@ -10,6 +10,7 @@ use App\Models\Screen;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 
 class FinancialController extends Controller
 {
@@ -118,48 +119,54 @@ class FinancialController extends Controller
     public function getLedger(Request $request)
     {
         $user = $request->user();
-        $query = FinancialLedger::with(['user', 'advertisement', 'screen']);
+        $userId = $user ? $user->user_id : 'guest';
+        $role = $user ? $user->role_id : 'guest';
+        $type = $request->has('type') ? $request->type : 'all';
+        $cacheKey = "financial_ledger_{$userId}_{$role}_{$type}";
 
-        if ($user) {
-            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
-                // ملاك الشاشات يشاهدون فقط حركاتهم الخاصة
-                $query->where('user_id', $user->user_id);
-            } elseif ($user->role && $user->role->role_name === 'Secretary') {
-                // السكرتير لا يمكنه رؤية الخزينة أو الأرباح الكلية
-                // يرى فقط الدفعات المعلقة التي تتطلب اتخاذ قرار (مراجعة الإيصال والاعتماد)
-                $query->where('transaction_type', 'payment_pending');
-            } else {
-                // للمدراء أو الأدوار الإدارية الأخرى، تصفية بحسب المعامل الممرر إن وجد
-                if ($request->has('user_id')) {
-                    $query->where('user_id', $request->user_id);
+        $data = Cache::remember($cacheKey, 300, function () use ($user, $request) {
+            $query = FinancialLedger::with(['user', 'advertisement', 'screen']);
+
+            if ($user) {
+                if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+                    // ملاك الشاشات يشاهدون فقط حركاتهم الخاصة
+                    $query->where('user_id', $user->user_id);
+                } elseif ($user->role && $user->role->role_name === 'Secretary') {
+                    // السكرتير يرى فقط الدفعات المعلقة
+                    $query->where('transaction_type', 'payment_pending');
+                } else {
+                    // للمدراء
+                    if ($request->has('user_id')) {
+                        $query->where('user_id', $request->user_id);
+                    }
                 }
             }
-        }
 
-        if ($request->has('type')) {
-            $query->where('transaction_type', $request->type);
-        }
+            if ($request->has('type')) {
+                $query->where('transaction_type', $request->type);
+            }
 
-        // تحديد الأعمدة المطلوبة وتجاهل receipt_path لأنه قد يحتوي على Base64 ضخم جداً يبطئ النظام
-        $query->select([
-            'ledger_id', 'advertisement_id', 'screen_id', 'user_id', 
-            'transaction_type', 'amount', 'payment_method', 'reference_number', 
-            'status', 'notes', 'created_at', 'updated_at'
-        ]);
-        
-        // إضافة حقل وهمي يخبر الواجهة ما إذا كان هناك صورة مرفقة أم لا
-        $query->addSelect(\Illuminate\Support\Facades\DB::raw('CASE WHEN receipt_path IS NOT NULL THEN 1 ELSE 0 END as has_receipt'));
+            $query->select([
+                'ledger_id', 'advertisement_id', 'screen_id', 'user_id', 
+                'transaction_type', 'amount', 'payment_method', 'reference_number', 
+                'status', 'notes', 'created_at', 'updated_at'
+            ]);
+            
+            $query->addSelect(\Illuminate\Support\Facades\DB::raw('CASE WHEN receipt_path IS NOT NULL THEN 1 ELSE 0 END as has_receipt'));
 
-        $ledger = $query->orderBy('created_at', 'desc')->get();
-        
-        $totalPayments = $ledger->whereIn('transaction_type', ['payment', 'payment_in'])->where('status', 'completed')->sum('amount');
+            $ledger = $query->orderBy('created_at', 'desc')->get();
+            
+            $totalPayments = $ledger->whereIn('transaction_type', ['payment', 'payment_in'])->where('status', 'completed')->sum('amount');
+            
+            return [
+                'total_payments' => $totalPayments,
+                'transactions'   => $ledger
+            ];
+        });
         
         return response()->json([
             'success' => true, 
-            'data' => [
-                'total_payments' => $totalPayments,
-                'transactions'   => $ledger
-            ]
+            'data' => $data
         ], 200);
     }
 
@@ -170,34 +177,38 @@ class FinancialController extends Controller
     {
         $userId = $request->user()->user_id;
         
-        $totalEarnings = FinancialLedger::where('user_id', $userId)
-            ->where('transaction_type', 'payout_pending')
-            ->sum('amount');
+        $data = Cache::remember("owner_earnings_{$userId}", 300, function () use ($userId) {
+            $totalEarnings = FinancialLedger::where('user_id', $userId)
+                ->where('transaction_type', 'payout_pending')
+                ->sum('amount');
 
-        $withdrawn = FinancialLedger::where('user_id', $userId)
-            ->where('transaction_type', 'payout_completed')
-            ->sum('amount');
-            
-        $requested = FinancialLedger::where('user_id', $userId)
-            ->where('transaction_type', 'payout_requested')
-            ->sum('amount');
-            
-        $availableBalance = $totalEarnings - $withdrawn - $requested;
+            $withdrawn = FinancialLedger::where('user_id', $userId)
+                ->where('transaction_type', 'payout_completed')
+                ->sum('amount');
+                
+            $requested = FinancialLedger::where('user_id', $userId)
+                ->where('transaction_type', 'payout_requested')
+                ->sum('amount');
+                
+            $availableBalance = $totalEarnings - $withdrawn - $requested;
 
-        $pendingLogs = FinancialLedger::with('advertisement')
-            ->where('user_id', $userId)
-            ->where('transaction_type', 'payout_pending')
-            ->orderBy('created_at', 'desc')
-            ->get();
+            $pendingLogs = FinancialLedger::with('advertisement')
+                ->where('user_id', $userId)
+                ->where('transaction_type', 'payout_pending')
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
+            return [
                 'total_earnings' => $totalEarnings,
                 'withdrawn' => $withdrawn,
                 'available_balance' => $availableBalance,
                 'pending_logs' => $pendingLogs
-            ]
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
         ], 200);
     }
     

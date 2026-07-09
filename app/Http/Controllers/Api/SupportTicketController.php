@@ -14,7 +14,7 @@ class SupportTicketController extends Controller
         
         // If the user is maintenance or admin, they might see all tickets.
         // For now, we return tickets for the authenticated user (ScreenOwner).
-        $tickets = SupportTicket::where('user_id', $user->user_id)
+        $tickets = SupportTicket::with('screen')->where('user_id', $user->user_id)
             ->orderBy('created_at', 'desc')
             ->get();
             
@@ -28,10 +28,12 @@ class SupportTicketController extends Controller
             'category' => 'required|string|max:50',
             'priority' => 'required|in:low,medium,high,urgent',
             'description' => 'required|string',
+            'screen_id' => 'nullable|exists:screens,screen_id'
         ]);
 
         $ticket = SupportTicket::create([
             'user_id' => $request->user()->user_id,
+            'screen_id' => $request->screen_id,
             'subject' => $request->subject,
             'category' => $request->category,
             'priority' => $request->priority,
