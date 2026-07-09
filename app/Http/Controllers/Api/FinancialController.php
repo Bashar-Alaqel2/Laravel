@@ -124,6 +124,10 @@ class FinancialController extends Controller
             if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
                 // ملاك الشاشات يشاهدون فقط حركاتهم الخاصة
                 $query->where('user_id', $user->user_id);
+            } elseif ($user->role && $user->role->role_name === 'Secretary') {
+                // السكرتير لا يمكنه رؤية الخزينة أو الأرباح الكلية
+                // يرى فقط الدفعات المعلقة التي تتطلب اتخاذ قرار (مراجعة الإيصال والاعتماد)
+                $query->where('transaction_type', 'payment_pending');
             } else {
                 // للمدراء أو الأدوار الإدارية الأخرى، تصفية بحسب المعامل الممرر إن وجد
                 if ($request->has('user_id')) {
@@ -173,6 +177,12 @@ class FinancialController extends Controller
         $withdrawn = FinancialLedger::where('user_id', $userId)
             ->where('transaction_type', 'payout_completed')
             ->sum('amount');
+            
+        $requested = FinancialLedger::where('user_id', $userId)
+            ->where('transaction_type', 'payout_requested')
+            ->sum('amount');
+            
+        $availableBalance = $totalEarnings - $withdrawn - $requested;
 
         $pendingLogs = FinancialLedger::with('advertisement')
             ->where('user_id', $userId)
@@ -183,12 +193,49 @@ class FinancialController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'total_earned' => $totalEarnings,
-                'withdrawn'    => $withdrawn,
-                'balance'      => $totalEarnings - $withdrawn,
-                'history'      => $pendingLogs
+                'total_earnings' => $totalEarnings,
+                'withdrawn' => $withdrawn,
+                'available_balance' => $availableBalance,
+                'pending_logs' => $pendingLogs
             ]
         ], 200);
+    }
+    
+    // ==========================================
+    // طلب سحب أرباح للمالك (Screen Owner)
+    // ==========================================
+    public function requestPayout(Request $request)
+    {
+        $user = $request->user();
+        
+        $request->validate([
+            'amount' => 'required|numeric|min:50',
+            'bank_name' => 'nullable|string',
+            'account_number' => 'required|string'
+        ]);
+
+        $amount = $request->amount;
+        
+        $totalEarnings = FinancialLedger::where('user_id', $user->user_id)->where('transaction_type', 'payout_pending')->sum('amount');
+        $withdrawn = FinancialLedger::where('user_id', $user->user_id)->where('transaction_type', 'payout_completed')->sum('amount');
+        $requested = FinancialLedger::where('user_id', $user->user_id)->where('transaction_type', 'payout_requested')->sum('amount');
+        
+        $availableBalance = $totalEarnings - $withdrawn - $requested;
+            
+        if ($amount > $availableBalance) {
+            return response()->json(['success' => false, 'message' => 'الرصيد المتاح غير كافٍ.'], 400);
+        }
+
+        FinancialLedger::create([
+            'user_id' => $user->user_id,
+            'transaction_type' => 'payout_requested',
+            'amount' => $amount,
+            'payment_method' => 'bank_transfer',
+            'status' => 'pending',
+            'notes' => json_encode(['bank_name' => $request->bank_name, 'account_number' => $request->account_number])
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'تم استلام طلب السحب بنجاح.']);
     }
 
     // ==========================================

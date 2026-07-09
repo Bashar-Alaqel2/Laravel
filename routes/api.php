@@ -80,6 +80,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // === مسارات لوحة التحكم (Dashboard) ===
     Route::get('/dashboard/overview', [App\Http\Controllers\Api\DashboardController::class, 'getOverview']);
+    Route::get('/dashboard/secretary-overview', [App\Http\Controllers\Api\DashboardController::class, 'getSecretaryOverview']);
     Route::get('/owner/dashboard', [App\Http\Controllers\Api\DashboardController::class, 'getOwnerOverview']);
     
     // === مسارات المعلن (Advertiser) ===
@@ -135,12 +136,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/financial/reject-payment/{id}', [App\Http\Controllers\Api\FinancialController::class, 'rejectPayment']);
     Route::get('/financial/receipt/{id}', [App\Http\Controllers\Api\FinancialController::class, 'getReceipt']);
     Route::get('/financial/my-earnings', [App\Http\Controllers\Api\FinancialController::class, 'getOwnerEarnings']);
+    Route::post('/financial/request-payout', [App\Http\Controllers\Api\FinancialController::class, 'requestPayout']);
     
     Route::apiResource('payment-methods', App\Http\Controllers\Api\PaymentMethodController::class);
     Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createPaymentIntent']);
     Route::post('/payments/manual', [App\Http\Controllers\Api\ManualPaymentController::class, 'store']);
     
     // === مسارات التقارير ===
+    Route::get('/reports/owner-analytics', [App\Http\Controllers\Api\ReportController::class, 'ownerAnalytics']);
     Route::get('/reports/screen', [App\Http\Controllers\Api\ReportController::class, 'screenReport']);
     Route::get('/reports/maintenance', [App\Http\Controllers\Api\ReportController::class, 'maintenanceReport']);
 });

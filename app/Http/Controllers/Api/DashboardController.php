@@ -14,6 +14,33 @@ use Carbon\Carbon;
 class DashboardController extends Controller
 {
     /**
+     * جلب إحصائيات لوحة السكرتير
+     */
+    public function getSecretaryOverview(Request $request)
+    {
+        // 1. حساب الإحصائيات الخاصة بالعمليات فقط
+        $pendingAdsCount = Advertisement::where('status', 'pending')->count() ?? 0;
+        
+        $pendingPaymentsCount = \App\Models\FinancialLedger::where('transaction_type', 'payment_pending')
+                                                  ->where('status', 'pending')
+                                                  ->count() ?? 0;
+
+        $offlineScreensCount = Screen::whereIn('status', ['offline', 'Offline', 'maintenance', 'error'])->count() ?? 0;
+        
+        $totalAds = Advertisement::where('is_deleted', 0)->count() ?? 0;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'pending_ads_count' => $pendingAdsCount,
+                'pending_payments_count' => $pendingPaymentsCount,
+                'offline_screens_count' => $offlineScreensCount,
+                'total_ads' => $totalAds,
+            ]
+        ], 200);
+    }
+
+    /**
      * جلب إحصائيات لوحة التحكم الشاملة (Dashboard Overview)
      * مخصصة لتلبية متطلبات واجهة النظام والإدارة
      */
