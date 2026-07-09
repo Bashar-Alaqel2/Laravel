@@ -168,34 +168,56 @@ class DashboardController extends Controller
             ->take(5)
             ->get()
             ->map(function($ledger) {
-                $isEarnings = in_array($ledger->transaction_type, ['payout_pending', 'payment_in']);
                 return [
-                    'title' => $ledger->notes ?? ($isEarnings ? 'أرباح مستحقة' : 'سحب أرباح'),
-                    'amount' => ($isEarnings ? '+' : '-') . number_format($ledger->amount, 0) . ' ر.ي',
-                    'time' => Carbon::parse($ledger->created_at)->format('g:i a'),
-                    'isEarnings' => $isEarnings
+                    'id' => $ledger->ledger_id,
+                    'text' => $ledger->notes ?? 'معاملة مالية',
+                    'type' => $ledger->amount > 0 ? 'success' : 'warning',
+                    'time' => $ledger->created_at->diffForHumans()
                 ];
             });
 
         // 6. قائمة شاشاتي بصيغة مناسبة للواجهة الأمامية
         $screensData = $screens->map(function($screen) {
             return [
+                'id' => $screen->screen_id,
                 'name' => $screen->screen_name,
-                'location_details' => ($screen->street->street_name ?? '') . ' - ' . ($screen->street->region->region_name ?? ''),
-                'city' => ($screen->street->region->governorate->governorate_name ?? 'مأرب') . ' - Yemen',
-                'status' => ($screen->status === 'Online' || $screen->status === 'online' || $screen->status === 'active') ? 'نشطة' : 'غير متصلة',
-                'image_base64' => $screen->image_path, // مسار الصورة (Base64 أو رابط)
+                'status' => $screen->status,
+                'revenue' => \App\Models\FinancialLedger::where('user_id', $screen->owner_id)
+                                ->where('transaction_type', 'payout_pending')
+                                ->where('notes', 'like', '%' . $screen->screen_name . '%')
+                                ->sum('amount') ?? 0
             ];
         });
+
+        // 6. الدخل الأسبوعي للرسم البياني
+        $weeklyRevenue = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $dayName = $date->format('D');
+            
+            $amount = \App\Models\FinancialLedger::where('user_id', $userId)
+                ->where('transaction_type', 'payout_pending')
+                ->whereDate('created_at', $date->toDateString())
+                ->sum('amount') ?? 0;
+                
+            $weeklyRevenue[] = [
+                'day' => $dayName,
+                'amount' => $amount,
+            ];
+        }
 
         return response()->json([
             'success' => true,
             'data' => [
                 'kpis' => [
-                    'today_earnings' => number_format($todayEarnings, 0) . ' ر.ي',
-                    'active_screens' => "{$activeScreensCount} / {$totalScreensCount}",
-                    'total_campaigns' => (string)$totalCampaigns,
-                    'weekly_views' => $weeklyViews > 1000 ? number_format($weeklyViews / 1000, 1) . 'K+' : (string)$weeklyViews,
+                    'today_earnings' => $todayEarnings,
+                    'active_screens' => $activeScreensCount,
+                    'total_screens' => $totalScreensCount,
+                    'total_campaigns' => $totalCampaigns,
+                    'weekly_views' => $weeklyViews,
+                ],
+                'charts' => [
+                    'weekly_revenue' => $weeklyRevenue
                 ],
                 'screens' => $screensData,
                 'financial_activities' => $activities

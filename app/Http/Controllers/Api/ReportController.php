@@ -11,49 +11,49 @@ use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
-        public function ownerAnalytics(Request )
+    public function ownerAnalytics(Request $request)
     {
-         = ->user();
-        if (!) return response()->json(['success' => false], 401);
+        $user = $request->user();
+        if (!$user) return response()->json(['success' => false], 401);
 
-         = Screen::with('street.region.governorate')
-            ->where('owner_id', ->user_id)
+        $screens = Screen::with('street.region.governorate')
+            ->where('owner_id', $user->user_id)
             ->get();
 
-         = [];
-         = 0;
-         = 0;
+        $analytics = [];
+        $totalRevenue = 0;
+        $totalImpressions = 0;
 
-        foreach ( as ) {
-             = \App\Models\FinancialLedger::where('user_id', ->user_id)
+        foreach ($screens as $screen) {
+            $screenRevenue = \App\Models\FinancialLedger::where('user_id', $user->user_id)
                 ->where('transaction_type', 'payout_pending') // Approximate revenue for this screen
-                ->where('notes', 'like', '%'.->screen_name.'%')
-                ->sum('amount');
+                ->where('notes', 'like', '%'.$screen->screen_name.'%')
+                ->sum('amount') ?? 0;
                 
-             = \App\Models\PlaybackLog::where('screen_id', ->screen_id)->count();
+            $screenImpressions = \App\Models\PlaybackLog::where('screen_id', $screen->screen_id)->count();
 
-             += ;
-             += ;
+            $totalRevenue += $screenRevenue;
+            $totalImpressions += $screenImpressions;
 
-            [] = [
-                'screen_id' => ->screen_id,
-                'screen_name' => ->screen_name,
-                'location' => \->street ? \->street->street_name . ', ' . (\->street->region->region_name ?? '') : 'غير محدد',
-                'status' => \->status,
-                'fill_rate' => rand(40, 95), // Simulated fill rate as it requires complex schedule logic
-                'impressions' =>  > 0 ?  : rand(500, 2000), // Fallback to random if no real data
-                'revenue' =>  > 0 ?  : rand(50, 300) // Fallback for UI visualization
+            $analytics[] = [
+                'screen_id' => $screen->screen_id,
+                'screen_name' => $screen->screen_name,
+                'location' => $screen->street ? $screen->street->street_name . ', ' . ($screen->street->region->region_name ?? '') : 'غير محدد',
+                'status' => $screen->status,
+                'fill_rate' => 0, // Real fill rate logic can be implemented later
+                'impressions' => $screenImpressions,
+                'revenue' => $screenRevenue
             ];
         }
 
         return response()->json([
             'success' => true,
-            'screens' => ,
+            'screens' => $analytics,
             'summary' => [
-                'total_revenue' =>  > 0 ?  : rand(1000, 5000),
-                'total_impressions' =>  > 0 ?  : rand(5000, 15000),
-                'total_screens' => count(),
-                'online_screens' => ->where('status', 'Online')->count(),
+                'total_revenue' => $totalRevenue,
+                'total_impressions' => $totalImpressions,
+                'total_screens' => count($screens),
+                'online_screens' => $screens->where('status', 'Online')->count(),
             ]
         ], 200);
     }
