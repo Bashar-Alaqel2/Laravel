@@ -19,14 +19,14 @@ class LookupController extends Controller
     public function getScreenTypes()
     {
         return response()->json(Cache::remember('lookup_screen_types', 86400, function () {
-            return ScreenType::all();
+            return ScreenType::all()->toArray();
         }), 200);
     }
 
     public function getGovernorates()
     {
         return response()->json(Cache::remember('lookup_governorates', 86400, function () {
-            return Governorate::all();
+            return Governorate::all()->toArray();
         }), 200);
     }
 
@@ -40,7 +40,7 @@ class LookupController extends Controller
     public function getAllRegions()
     {
         return response()->json(Cache::remember('lookup_all_regions', 86400, function () {
-            return Region::with('governorate')->get();
+            return Region::with('governorate')->get()->toArray();
         }), 200);
     }
 
@@ -55,14 +55,14 @@ class LookupController extends Controller
     public function getAllStreets()
     {
         return response()->json(Cache::remember('lookup_all_streets', 86400, function () {
-            return Street::with('region.governorate')->get();
+            return Street::with('region.governorate')->get()->toArray();
         }), 200);
     }
 
     public function getCategories()
     {
         return response()->json(Cache::remember('lookup_categories', 86400, function () {
-            return Category::all();
+            return Category::all()->toArray();
         }), 200);
     }
 
@@ -72,7 +72,7 @@ class LookupController extends Controller
         return response()->json(Cache::remember($cacheKey, 3600, function () use ($roleName) {
             return \App\Models\User::with('role')->whereHas('role', function($query) use ($roleName) {
                 $query->where('role_name', $roleName);
-            })->get(['user_id', 'role_id', 'full_name', 'email']);
+            })->get(['user_id', 'role_id', 'full_name', 'email'])->toArray();
         }), 200);
     }
 
@@ -370,5 +370,6 @@ class LookupController extends Controller
         return response()->json(['message' => 'تم حذف التصنيف بنجاح'], 200);
     }
 }
+
 
 
