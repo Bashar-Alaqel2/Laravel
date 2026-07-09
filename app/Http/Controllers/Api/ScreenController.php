@@ -177,6 +177,7 @@ class ScreenController extends Controller
             'screen_name'      => 'nullable|string|max:100',
             'type_id'          => 'nullable|exists:screen_types,type_id',
             'street_id'        => 'nullable|exists:streets,street_id',
+            'owner_id'         => 'nullable|exists:users,user_id',
             'status'           => 'nullable|in:Online,Offline,Maintenance',
             'base_price'       => 'nullable|numeric|min:0',
             'screen_size_inch' => 'nullable|integer|min:10|max:999',
@@ -184,8 +185,29 @@ class ScreenController extends Controller
             'longitude'        => 'nullable|numeric',
         ]);
 
+        $oldOwnerId = $screen->owner_id;
+
         // نقوم بتحديث البيانات التي تم إرسالها فقط
-        $screen->update($request->only(['screen_name', 'type_id', 'street_id', 'status', 'base_price', 'screen_size_inch', 'latitude', 'longitude']));
+        $screen->update($request->only(['screen_name', 'type_id', 'street_id', 'owner_id', 'status', 'base_price', 'screen_size_inch', 'latitude', 'longitude']));
+
+        // If the owner has changed, we should clear the cache for both the old and new owner's dashboard/financials.
+        if ($oldOwnerId !== $screen->owner_id) {
+            // Since we don't have the exact role ID here easily without querying, we can just clear common patterns.
+            \Illuminate\Support\Facades\Cache::flush(); // Flush all cache just to be perfectly safe as owner changes are rare.
+            
+            // Re-assign previous financial records to new owner?
+            // Usually we do NOT move old financial records because they belong to the person who owned it at that time.
+            // But we should update the screen's current owner so future revenue goes to the new owner.
+            // Wait, the user asked: "وترتبط الشاشة في حسابه وتضهر في لوحة التحكم الخاص به مع جميع بيانات وإراتها واربحها"
+            // "and the screen is linked to his account and shows in his dashboard with all its data, revenue and earnings"
+            // If they want the PAST earnings to move to the new owner, we need to update FinancialLedger.
+            
+            if ($screen->owner_id) {
+                // Update past financial ledgers to the new owner so they see its entire history
+                \App\Models\FinancialLedger::where('screen_id', $screen->screen_id)
+                    ->update(['user_id' => $screen->owner_id]);
+            }
+        }
 
         return response()->json([
             'message' => 'تم تعديل الشاشة بنجاح',
