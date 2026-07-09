@@ -76,11 +76,10 @@ class LookupController extends Controller
         }), 200);
     }
 
-    public function getRoles()
+        public function getRoles()
     {
-        return response()->json(Cache::remember('lookup_roles', 86400, function () {
-            return \App\Models\Role::all();
-        }), 200);
+        return response()->json(\App\Models\Role::all(), 200);
+    }), 200);
     }
 
     // =======================================
@@ -370,3 +369,4 @@ class LookupController extends Controller
         return response()->json(['message' => 'تم حذف التصنيف بنجاح'], 200);
     }
 }
+
