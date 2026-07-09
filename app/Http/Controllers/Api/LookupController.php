@@ -76,10 +76,11 @@ class LookupController extends Controller
         }), 200);
     }
 
-        public function getRoles()
+    public function getRoles()
     {
-        return response()->json(\App\Models\Role::all(), 200);
-    }), 200);
+        return response()->json(\Illuminate\Support\Facades\Cache::remember('lookup_roles', 86400, function () {
+            return \App\Models\Role::all()->toArray();
+        }), 200);
     }
 
     // =======================================
