@@ -8,7 +8,7 @@ class Screen extends Model {
     protected $table = 'screens';
     protected $primaryKey = 'screen_id';
     public $timestamps = false;
-    protected $fillable = ['owner_id', 'type_id', 'street_id', 'screen_name', 'base_price', 'screen_size_inch', 'image_path', 'status', 'linked_by', 'linked_at', 'disconnected_at', 'mac_address', 'pairing_code'];
+    protected $fillable = ['owner_id', 'type_id', 'street_id', 'screen_name', 'base_price', 'screen_size_inch', 'image_path', 'status', 'linked_by', 'linked_at', 'disconnected_at', 'mac_address', 'pairing_code', 'latitude', 'longitude'];
 
     // دالة ديناميكية لحساب حالة الشاشة بشكل لحظي (Real-time) بناءً على آخر نبضة (Ping)
     public function getStatusAttribute($value)
