@@ -263,6 +263,7 @@ class AuthController extends Controller
             'phone'     => 'nullable|string|max:20|unique:users,phone,' . $id . ',user_id',
             'location'  => 'nullable|string|max:100',
             'password'  => 'nullable|string|min:6',
+            'role_id'   => 'nullable|exists:roles,role_id'
         ]);
 
         if ($validator->fails()) {
@@ -274,9 +275,33 @@ class AuthController extends Controller
             $data['password_hash'] = Hash::make($request->password);
         }
 
+        $roleChanged = false;
+        if ($request->filled('role_id') && $user->role_id != $request->role_id) {
+            $oldRole = $user->role;
+            if ($oldRole) {
+                \Illuminate\Support\Facades\Cache::forget('lookup_users_role_' . strtolower($oldRole->role_name));
+            }
+            
+            $data['role_id'] = $request->role_id;
+            $roleChanged = true;
+            
+            $newRole = Role::find($request->role_id);
+            if ($newRole) {
+                \Illuminate\Support\Facades\Cache::forget('lookup_users_role_' . strtolower($newRole->role_name));
+            }
+        }
+
         $user->update($data);
 
-        return response()->json(['message' => 'تم تحديث بيانات المستخدم بنجاح', 'data' => $user], 200);
+        if ($roleChanged) {
+            $user->tokens()->delete();
+            \App\Models\UserSession::where('user_id', $user->user_id)->delete();
+        }
+
+        return response()->json([
+            'message' => 'تم تحديث بيانات المستخدم بنجاح' . ($roleChanged ? ' وإنهاء جلساته لتفعيل الصلاحية الجديدة' : ''), 
+            'data' => $user->load('role')
+        ], 200);
     }
 
     // تعديل حالة حساب المستخدم (تفعيل/إيقاف)
