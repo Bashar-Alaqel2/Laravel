@@ -142,6 +142,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createPaymentIntent']);
     Route::post('/payments/manual', [App\Http\Controllers\Api\ManualPaymentController::class, 'store']);
     
+    // === مسارات الدعم والصيانة (Support Tickets) ===
+    Route::apiResource('support/tickets', App\Http\Controllers\Api\SupportTicketController::class);
     // === مسارات التقارير ===
     Route::get('/reports/owner-analytics', [App\Http\Controllers\Api\ReportController::class, 'ownerAnalytics']);
     Route::get('/reports/screen', [App\Http\Controllers\Api\ReportController::class, 'screenReport']);
