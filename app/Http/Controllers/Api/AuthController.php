@@ -327,8 +327,12 @@ class AuthController extends Controller
             }
         }
 
+        // إنهاء جميع الجلسات النشطة للمستخدم ليتم إجباره على تسجيل الدخول بالصلاحية الجديدة
+        $user->tokens()->delete();
+        \App\Models\UserSession::where('user_id', $user->user_id)->delete();
+
         return response()->json([
-            'message' => 'تم تحديث رتبة المستخدم بنجاح',
+            'message' => 'تم تحديث رتبة المستخدم بنجاح وإنهاء جلساته لتفعيل الصلاحية الجديدة',
             'user' => $user->load('role')
         ], 200);
     }
