@@ -166,10 +166,9 @@ class ScreenController extends Controller
         }
 
         if ($user) {
-            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
-                if ($screen->owner_id !== $user->user_id) {
-                    return response()->json(['message' => 'غير مصرح لك بتعديل هذه الشاشة'], 403);
-                }
+            // Only Admins (manage_all or manage_screens) can update screens.
+            if (!$user->can('manage_all') && !$user->can('manage_screens')) {
+                return response()->json(['message' => 'غير مصرح لك بتعديل هذه الشاشة'], 403);
             }
         }
 
@@ -228,10 +227,9 @@ class ScreenController extends Controller
         }
 
         if ($user) {
-            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
-                if ($screen->owner_id !== $user->user_id) {
-                    return response()->json(['message' => 'غير مصرح لك بحذف هذه الشاشة'], 403);
-                }
+            // Only Admins can delete screens.
+            if (!$user->can('manage_all') && !$user->can('manage_screens')) {
+                return response()->json(['message' => 'غير مصرح لك بحذف هذه الشاشة'], 403);
             }
         }
 

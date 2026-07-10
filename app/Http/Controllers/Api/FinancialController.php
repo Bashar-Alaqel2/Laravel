@@ -194,9 +194,11 @@ class FinancialController extends Controller
 
             $pendingLogs = FinancialLedger::with('advertisement')
                 ->where('user_id', $userId)
-                ->where('transaction_type', 'payout_pending')
+                ->whereIn('transaction_type', ['payout_pending', 'payout_requested', 'payout_completed', 'payout_rejected'])
                 ->orderBy('created_at', 'desc')
-                ->get();
+                ->get()
+                ->values()
+                ->toArray();
 
             return [
                 'total_earnings' => $totalEarnings,
@@ -245,6 +247,9 @@ class FinancialController extends Controller
             'status' => 'pending',
             'notes' => json_encode(['bank_name' => $request->bank_name, 'account_number' => $request->account_number])
         ]);
+
+        // Clear cache so the admin and the owner immediately see the update
+        \Illuminate\Support\Facades\Cache::flush();
 
         return response()->json(['success' => true, 'message' => 'تم استلام طلب السحب بنجاح.']);
     }
