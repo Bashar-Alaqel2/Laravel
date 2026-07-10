@@ -60,5 +60,37 @@ class SystemSettingController extends Controller
             'data' => $freshSettings
         ]);
     }
+
+    /**
+     * Download database backup as JSON
+     */
+    public function downloadBackup(Request $request)
+    {
+        // Only Admin or SuperAdmin
+        if (!$request->user() || !$request->user()->can('manage_all')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        try {
+            $tables = \Illuminate\Support\Facades\DB::select("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'");
+            
+            $backupData = [];
+            foreach ($tables as $table) {
+                $tableName = $table->tablename;
+                $backupData[$tableName] = \Illuminate\Support\Facades\DB::table($tableName)->get();
+            }
+
+            $json = json_encode($backupData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            
+            $fileName = 'database_backup_' . date('Y_m_d_His') . '.json';
+            
+            return response($json, 200, [
+                'Content-Type' => 'application/json',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to generate backup: ' . $e->getMessage()], 500);
+        }
+    }
 }
 

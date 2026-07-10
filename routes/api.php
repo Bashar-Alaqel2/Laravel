@@ -154,5 +154,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // === مسارات الإعدادات ===
     Route::get('/settings', [App\Http\Controllers\Api\SystemSettingController::class, 'index']);
     Route::post('/settings', [App\Http\Controllers\Api\SystemSettingController::class, 'update']);
+    Route::get('/settings/backup/download', [App\Http\Controllers\Api\SystemSettingController::class, 'downloadBackup']);
 });
 
