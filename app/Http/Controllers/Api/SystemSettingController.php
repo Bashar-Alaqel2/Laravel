@@ -72,7 +72,8 @@ class SystemSettingController extends Controller
         }
 
         try {
-            $tables = \Illuminate\Support\Facades\DB::select("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'");
+            // Only backup tables from the public schema
+            $tables = \Illuminate\Support\Facades\DB::select("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'");
             
             $backupData = [];
             foreach ($tables as $table) {
@@ -88,7 +89,7 @@ class SystemSettingController extends Controller
                 'Content-Type' => 'application/json',
                 'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => 'Failed to generate backup: ' . $e->getMessage()], 500);
         }
     }
