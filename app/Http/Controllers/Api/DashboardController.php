@@ -140,6 +140,12 @@ class DashboardController extends Controller
                 ->whereDate('created_at', Carbon::today())
                 ->sum('amount') ?? 0;
 
+            // حساب أرباح الشهر
+            $monthlyEarnings = \App\Models\FinancialLedger::where('user_id', $userId)
+                ->where('transaction_type', 'payout_pending')
+                ->whereMonth('created_at', Carbon::now()->month)
+                ->sum('amount') ?? 0;
+
             // 2. حساب الشاشات النشطة والإجمالي
             $screens = Screen::with(['street.region.governorate'])->where('owner_id', $userId)->get();
             
@@ -213,6 +219,7 @@ class DashboardController extends Controller
             return [
                 'kpis' => [
                     'today_earnings' => $todayEarnings,
+                    'monthly_earnings' => $monthlyEarnings,
                     'active_screens' => $activeScreensCount,
                     'total_screens' => $totalScreensCount,
                     'total_campaigns' => $totalCampaigns,
