@@ -83,6 +83,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/secretary-overview', [App\Http\Controllers\Api\DashboardController::class, 'getSecretaryOverview']);
     Route::get('/owner/dashboard', [App\Http\Controllers\Api\DashboardController::class, 'getOwnerOverview']);
     
+    // === مسارات سجلات التشغيل (Playback Logs) ===
+    Route::get('/logs/playback/export', [App\Http\Controllers\Api\PlaybackLogController::class, 'export']);
+    Route::get('/logs/playback', [App\Http\Controllers\Api\PlaybackLogController::class, 'index']);
+    
     // === مسارات المعلن (Advertiser) ===
     Route::get('/advertiser/dashboard', [App\Http\Controllers\Api\AdvertiserController::class, 'getDashboard']);
     Route::get('/advertiser/financials', [App\Http\Controllers\Api\AdvertiserController::class, 'getFinancials']);
