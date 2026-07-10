@@ -30,6 +30,14 @@ class AdController extends Controller
                 'paused' => (clone $query)->where('status', 'Paused')->count(),
             ];
 
+            if ($request->has('status') && $request->status !== 'all') {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->has('search') && !empty($request->search)) {
+                $query->where('ad_title', 'like', '%' . $request->search . '%');
+            }
+
             $ads = $query->with(['advertiser', 'screens.street.region.governorate', 'category'])
                          ->orderBy('uploaded_at', 'desc')
                          ->paginate(50);
@@ -64,6 +72,14 @@ class AdController extends Controller
                 'rejected' => (clone $query)->where('status', 'Rejected')->count(),
                 'paused' => (clone $query)->where('status', 'Paused')->count(),
             ];
+
+            if ($request->has('status') && $request->status !== 'all') {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->has('search') && !empty($request->search)) {
+                $query->where('ad_title', 'like', '%' . $request->search . '%');
+            }
 
             $ads = $query->with(['screens', 'category'])
                          ->orderBy('uploaded_at', 'desc')
