@@ -17,3 +17,15 @@ Broadcast::channel('admin.ledger', function ($user) {
 Broadcast::channel('owner.earnings.{id}', function ($user, $id) {
     return (int) $user->user_id === (int) $id;
 });
+
+Broadcast::channel('admin.screens', function ($user) {
+    return $user->can('manage_all');
+});
+
+Broadcast::channel('admin.tickets', function ($user) {
+    return $user->can('manage_all');
+});
+
+Broadcast::channel('user.tickets.{id}', function ($user, $id) {
+    return (int) $user->user_id === (int) $id;
+});

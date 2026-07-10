@@ -41,6 +41,8 @@ class SupportTicketController extends Controller
             'status' => 'open'
         ]);
 
+        event(new \App\Events\TicketUpdated($ticket, $ticket->user_id));
+
         return response()->json([
             'message' => 'تم إنشاء التذكرة بنجاح',
             'ticket' => $ticket

@@ -123,6 +123,8 @@ class ScreenController extends Controller
             ]);
         }
 
+        event(new \App\Events\ScreenUpdated($screen));
+
         return response()->json([
             'success' => true,
             'message' => 'تم تفعيل وإضافة الشاشة بنجاح وربطها بالمعرف المولد من السيرفر',
@@ -208,6 +210,8 @@ class ScreenController extends Controller
             }
         }
 
+        event(new \App\Events\ScreenUpdated($screen));
+
         return response()->json([
             'message' => 'تم تعديل الشاشة بنجاح',
             'screen'  => $screen
@@ -234,6 +238,8 @@ class ScreenController extends Controller
         }
 
         $screen->delete(); 
+
+        event(new \App\Events\ScreenUpdated($screen));
 
         return response()->json(['message' => 'تم حذف الشاشة بنجاح'], 200);
     }
@@ -263,6 +269,8 @@ class ScreenController extends Controller
             'status' => 'Online',
             'linked_at' => now(), // وقت آخر نبض/اتصال
         ]);
+
+        event(new \App\Events\ScreenUpdated($screen));
 
         return response()->json([
             'success' => true,
@@ -333,6 +341,8 @@ class ScreenController extends Controller
             'status' => 'Online', // تصبح أونلاين فور الربط
             'linked_at' => now(),
         ]);
+
+        event(new \App\Events\ScreenUpdated($screen));
 
         return response()->json([
             'success' => true,
