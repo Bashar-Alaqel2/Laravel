@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // تنظيف مساحة السيرفر من ملفات الإعلانات المحذوفة بعد 30 يوم
 Schedule::command('ads:clean-deleted-files --days=30')->dailyAt('02:00');
+
+// تنظيف سجلات التشغيل القديمة لتخفيف قاعدة البيانات
+Schedule::command('logs:cleanup --days=30')->dailyAt('03:00');

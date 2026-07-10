@@ -86,6 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // === مسارات سجلات التشغيل (Playback Logs) ===
     Route::get('/logs/playback/export', [App\Http\Controllers\Api\PlaybackLogController::class, 'export']);
     Route::get('/logs/playback', [App\Http\Controllers\Api\PlaybackLogController::class, 'index']);
+    Route::delete('/logs/playback/cleanup', [App\Http\Controllers\Api\PlaybackLogController::class, 'cleanup']);
     
     // === مسارات المعلن (Advertiser) ===
     Route::get('/advertiser/dashboard', [App\Http\Controllers\Api\AdvertiserController::class, 'getDashboard']);

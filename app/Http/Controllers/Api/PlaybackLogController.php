@@ -134,4 +134,21 @@ class PlaybackLogController extends Controller
 
         return $query;
     }
+
+    /**
+     * Manual cleanup of old logs via API
+     */
+    public function cleanup(Request $request)
+    {
+        $days = $request->input('days', 30);
+        $dateThreshold = Carbon::now()->subDays($days);
+        
+        $deletedCount = PlaybackLog::where('played_at', '<', $dateThreshold)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "تم حذف {$deletedCount} سجل قديم بنجاح.",
+            'deleted_count' => $deletedCount
+        ]);
+    }
 }
