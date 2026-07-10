@@ -248,10 +248,142 @@ class FinancialController extends Controller
             'notes' => json_encode(['bank_name' => $request->bank_name, 'account_number' => $request->account_number])
         ]);
 
+        // إشعار الإدارة بوجود طلب سحب جديد
+        $adminUsers = \App\Models\User::whereHas('role', function($q) {
+            $q->whereIn('role_name', ['SuperAdmin', 'Admin']);
+        })->get();
+        
+        foreach($adminUsers as $adminUser) {
+            \App\Models\Notification::create([
+                'user_id' => $adminUser->user_id,
+                'title' => json_encode(['key' => 'notif_title_payout_requested']),
+                'message' => json_encode(['key' => 'notif_msg_payout_requested', 'args' => ['name' => $user->full_name, 'amount' => $amount]]),
+                'is_read' => false,
+            ]);
+        }
+
         // Clear cache so the admin and the owner immediately see the update
         \Illuminate\Support\Facades\Cache::flush();
 
         return response()->json(['success' => true, 'message' => 'تم استلام طلب السحب بنجاح.']);
+    }
+
+    // ==========================================
+    // اعتماد طلب السحب (Payout Approved)
+    // ==========================================
+    public function approvePayout(Request $request, $id)
+    {
+        $admin = $request->user();
+        if (!$admin->can('manage_all')) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بذلك.'], 403);
+        }
+
+        $request->validate([
+            'reference_number' => 'required|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $ledger = FinancialLedger::findOrFail($id);
+            if ($ledger->transaction_type !== 'payout_requested') {
+                return response()->json(['success' => false, 'message' => 'هذه العملية ليست طلب سحب قيد المراجعة.'], 400);
+            }
+
+            // تحديث الطلب إلى مكتمل
+            $ledger->update([
+                'transaction_type' => 'payout_completed',
+                'status' => 'completed',
+                'reference_number' => $request->reference_number,
+            ]);
+            
+            $notes = json_decode($ledger->notes, true) ?: [];
+            $notes['approved_by'] = $admin->user_id;
+            $notes['approved_at'] = now()->toDateTimeString();
+            $ledger->update(['notes' => json_encode($notes)]);
+
+            // خصم من رصيد المنصة (القيد المزدوج)
+            FinancialLedger::create([
+                'user_id' => 1, // حساب المنصة الرئيسي
+                'transaction_type' => 'platform_payout_deduction',
+                'amount' => $ledger->amount,
+                'status' => 'completed',
+                'reference_number' => $request->reference_number,
+                'notes' => json_encode([
+                    'message' => 'صرف أرباح لمالك شاشة',
+                    'screen_owner_id' => $ledger->user_id,
+                    'payout_ledger_id' => $ledger->ledger_id,
+                ])
+            ]);
+
+            // إشعار المالك
+            \App\Models\Notification::create([
+                'user_id' => $ledger->user_id,
+                'title' => json_encode(['key' => 'notif_title_payout_approved']),
+                'message' => json_encode(['key' => 'notif_msg_payout_approved', 'args' => ['amount' => $ledger->amount, 'ref' => $request->reference_number]]),
+                'is_read' => false,
+            ]);
+
+            DB::commit();
+            \Illuminate\Support\Facades\Cache::flush();
+
+            return response()->json(['success' => true, 'message' => 'تم اعتماد طلب السحب وخصم المبلغ من الخزينة.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'حدث خطأ: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // ==========================================
+    // رفض طلب السحب (Payout Rejected)
+    // ==========================================
+    public function rejectPayout(Request $request, $id)
+    {
+        $admin = $request->user();
+        if (!$admin->can('manage_all')) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بذلك.'], 403);
+        }
+
+        $request->validate([
+            'reason' => 'required|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $ledger = FinancialLedger::findOrFail($id);
+            if ($ledger->transaction_type !== 'payout_requested') {
+                return response()->json(['success' => false, 'message' => 'هذه العملية ليست طلب سحب قيد المراجعة.'], 400);
+            }
+
+            // تحديث الطلب إلى مرفوض
+            $ledger->update([
+                'transaction_type' => 'payout_rejected',
+                'status' => 'rejected',
+            ]);
+            
+            $notes = json_decode($ledger->notes, true) ?: [];
+            $notes['rejected_by'] = $admin->user_id;
+            $notes['rejection_reason'] = $request->reason;
+            $notes['rejected_at'] = now()->toDateTimeString();
+            $ledger->update(['notes' => json_encode($notes)]);
+
+            // إشعار المالك بالرفض
+            \App\Models\Notification::create([
+                'user_id' => $ledger->user_id,
+                'title' => json_encode(['key' => 'notif_title_payout_rejected']),
+                'message' => json_encode(['key' => 'notif_msg_payout_rejected', 'args' => ['amount' => $ledger->amount, 'reason' => $request->reason]]),
+                'is_read' => false,
+            ]);
+
+            DB::commit();
+            \Illuminate\Support\Facades\Cache::flush();
+
+            return response()->json(['success' => true, 'message' => 'تم إرجاع المبلغ لمحفظة المالك مع إشعار بالرفض.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'حدث خطأ: ' . $e->getMessage()], 500);
+        }
     }
 
     // ==========================================

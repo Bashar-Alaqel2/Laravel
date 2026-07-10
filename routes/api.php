@@ -134,6 +134,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/financial/payments', [App\Http\Controllers\Api\FinancialController::class, 'recordPayment']);
     Route::post('/financial/approve-payment/{id}', [App\Http\Controllers\Api\FinancialController::class, 'approvePayment']);
     Route::post('/financial/reject-payment/{id}', [App\Http\Controllers\Api\FinancialController::class, 'rejectPayment']);
+    Route::post('/financial/approve-payout/{id}', [App\Http\Controllers\Api\FinancialController::class, 'approvePayout']);
+    Route::post('/financial/reject-payout/{id}', [App\Http\Controllers\Api\FinancialController::class, 'rejectPayout']);
     Route::get('/financial/receipt/{id}', [App\Http\Controllers\Api\FinancialController::class, 'getReceipt']);
     Route::get('/financial/my-earnings', [App\Http\Controllers\Api\FinancialController::class, 'getOwnerEarnings']);
     Route::post('/financial/request-payout', [App\Http\Controllers\Api\FinancialController::class, 'requestPayout']);
