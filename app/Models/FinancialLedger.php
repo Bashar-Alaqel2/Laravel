@@ -38,4 +38,11 @@ class FinancialLedger extends Model
     {
         return $this->belongsTo(Screen::class, 'screen_id', 'screen_id');
     }
+
+    protected static function booted()
+    {
+        static::saved(function ($ledger) {
+            broadcast(new \App\Events\LedgerUpdated($ledger->user_id));
+        });
+    }
 }
