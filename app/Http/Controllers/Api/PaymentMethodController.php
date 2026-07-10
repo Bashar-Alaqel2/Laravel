@@ -21,7 +21,7 @@ class PaymentMethodController extends Controller
             $methods = $methods->where('is_active', 1)->values();
         }
 
-        return response()->json(['success' => true, 'data' => $methods]);
+        return response()->json(['success' => true, 'data' => $methods->values()]);
     }
 
     // إضافة وسيلة دفع جديدة (للأدمن فقط)
