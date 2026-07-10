@@ -221,12 +221,35 @@ class AdController extends Controller
             // تحديد الحالة الأولية: جميع الإعلانات تذهب للمراجعة أولاً
             $initialStatus = 'Pending';
 
-            // رفع الملف إلى مساحة التخزين السحابية S3 (Supabase)
-            $path = $request->file('file')->store('ads', 's3');
+            // رفع الملف بناءً على مساحة التخزين (يدعم المحلي بدون S3)
+            $disk = env('FILESYSTEM_DISK', 'public');
+            $path = $request->file('file')->store('ads', $disk);
             $sizeInMB = $request->file('file')->getSize() / 1024 / 1024;
             
             // جلب الرابط العام للملف
-            $fileUrl = \Illuminate\Support\Facades\Storage::disk('s3')->url($path);
+            $fileUrl = \Illuminate\Support\Facades\Storage::disk($disk)->url($path);
+
+            $advertiserId = $request->advertiser_id ?? $request->user()->user_id;
+
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            // التحقق من الرصيد إذا لم يرفق إيصال دفع
+            if (!$request->hasFile('receipt')) {
+                $totalDeposits = \App\Models\FinancialLedger::where('user_id', $advertiserId)
+                    ->whereIn('transaction_type', ['deposit_completed', 'payment_in'])
+                    ->sum('amount');
+                $totalPayments = \App\Models\FinancialLedger::where('user_id', $advertiserId)
+                    ->where('transaction_type', 'ad_payment')
+                    ->sum('amount');
+                
+                $availableBalance = $totalDeposits - $totalPayments;
+
+                if ($availableBalance < $request->total_cost) {
+                    \Illuminate\Support\Facades\Storage::disk($disk)->delete($path);
+                    \Illuminate\Support\Facades\DB::rollBack();
+                    return response()->json(['success' => false, 'message' => 'عذراً، رصيدك المتاح لا يكفي لإنشاء هذه الحملة. يرجى شحن الرصيد أو إرفاق إيصال التحويل البنكي.'], 400);
+                }
+            }
 
             $ad = Advertisement::create([
                 'advertiser_id'   => $request->advertiser_id ?? $request->user()->user_id,
@@ -258,7 +281,7 @@ class AdController extends Controller
                 'is_active' => true,
             ]);
 
-            // تسجيل إيصال الدفع إن وجد وتحويله إلى Base64 لتخزينه في قاعدة البيانات
+            // تسجيل إيصال الدفع أو تنفيذ القيود المحاسبية الفورية
             if ($request->hasFile('receipt')) {
                 $file = $request->file('receipt');
                 $base64 = base64_encode(file_get_contents($file->getRealPath()));
@@ -267,14 +290,58 @@ class AdController extends Controller
 
                 \App\Models\FinancialLedger::create([
                     'advertisement_id' => $ad->ad_id,
-                    'user_id'          => $ad->advertiser_id ?? $request->user()->user_id,
+                    'user_id'          => $advertiserId,
                     'transaction_type' => 'payment_pending',
                     'amount'           => $ad->total_cost,
                     'status'           => 'pending',
                     'notes'            => "إيصال دفع مرفق عند إنشاء الإعلان: {$ad->title}",
                     'receipt_path'     => $receiptData,
                 ]);
+            } else {
+                // 1. خصم التكلفة من المعلن
+                \App\Models\FinancialLedger::create([
+                    'advertisement_id' => $ad->ad_id,
+                    'user_id' => $advertiserId,
+                    'transaction_type' => 'ad_payment',
+                    'amount' => $ad->total_cost,
+                    'status' => 'completed',
+                    'notes' => "دفع قيمة الإعلان من الرصيد المتاح: {$ad->title}"
+                ]);
+
+                // 2. حساب عمولة النظام (20%)
+                $systemCommission = $ad->total_cost * 0.20;
+                \App\Models\FinancialLedger::create([
+                    'advertisement_id' => $ad->ad_id,
+                    'user_id' => 1, // النظام/الآدمن الرئيسي
+                    'transaction_type' => 'system_commission',
+                    'amount' => $systemCommission,
+                    'status' => 'completed',
+                    'notes' => "عمولة المنصة من الإعلان: {$ad->title}"
+                ]);
+
+                // 3. تجميد نصيب ملاك الشاشات
+                $ownerRevenue = $ad->total_cost - $systemCommission;
+                $screensCount = count($request->screen_ids);
+                if ($screensCount > 0) {
+                    $amountPerScreen = $ownerRevenue / $screensCount;
+                    foreach ($request->screen_ids as $screenId) {
+                        $screen = \App\Models\Screen::find($screenId);
+                        if ($screen && $screen->owner_id) {
+                            \App\Models\FinancialLedger::create([
+                                'advertisement_id' => $ad->ad_id,
+                                'screen_id' => $screen->screen_id,
+                                'user_id' => $screen->owner_id,
+                                'transaction_type' => 'ad_revenue_pending',
+                                'amount' => $amountPerScreen,
+                                'status' => 'pending',
+                                'notes' => "إيراد معلق للإعلان: {$ad->title}"
+                            ]);
+                        }
+                    }
+                }
             }
+
+            \Illuminate\Support\Facades\DB::commit();
 
             // إرسال إشعارات
             if ($initialStatus === 'Pending') {
@@ -316,6 +383,7 @@ class AdController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
             return response()->json(['success' => false, 'message' => 'خطأ في السيرفر: ' . $e->getMessage()], 500);
         }
     }
