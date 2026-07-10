@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\PlaybackLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Response;
+use Meneses\LaravelMpdf\Facades\LaravelMpdf as PDF;
 
 class PlaybackLogController extends Controller
 {
@@ -53,12 +54,24 @@ class PlaybackLogController extends Controller
     }
 
     /**
-     * Export playback logs to CSV
+     * Export playback logs to CSV or PDF
      */
     public function export(Request $request)
     {
         $query = $this->buildQuery($request);
         $logs = $query->get();
+        $format = $request->input('format', 'csv');
+
+        if ($format === 'pdf') {
+            $pdf = PDF::loadView('pdf.playback_logs', compact('logs'), [], [
+                'mode' => 'utf-8',
+                'format' => 'A4',
+                'orientation' => 'P',
+                'autoScriptToLang' => true,
+                'autoLangToFont' => true,
+            ]);
+            return $pdf->download('playback_logs_' . date('Y-m-d_H-i-s') . '.pdf');
+        }
 
         $headers = [
             "Content-type"        => "text/csv; charset=UTF-8",
@@ -89,7 +102,7 @@ class PlaybackLogController extends Controller
             fclose($file);
         };
 
-        return Response::stream($callback, 200, $headers);
+        return response()->stream($callback, 200, $headers);
     }
 
     /**
