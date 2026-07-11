@@ -135,6 +135,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/lookups/categories/{id}', [App\Http\Controllers\Api\LookupController::class, 'destroyCategory']);
     
     // === مسارات النظام المالي ===
+    Route::get('/financial/admin-dashboard', [App\Http\Controllers\Api\FinancialController::class, 'getAdminDashboardStats']);
     Route::get('/financial/ledger', [App\Http\Controllers\Api\FinancialController::class, 'getLedger']);
     Route::post('/financial/payments', [App\Http\Controllers\Api\FinancialController::class, 'recordPayment']);
     Route::post('/financial/approve-payment/{id}', [App\Http\Controllers\Api\FinancialController::class, 'approvePayment']);

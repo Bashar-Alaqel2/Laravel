@@ -77,8 +77,10 @@ class FinancialController extends Controller
     // ==========================================
     public function distributeEarnings(Advertisement $ad, $totalAmount)
     {
-        // نسبة المنصة (مثلاً 20%)
-        $platformFeeRate = 0.20;
+        // نسبة المنصة (يتم جلبها من الإعدادات، الافتراضي 15%)
+        $commissionSetting = \App\Models\SystemSetting::where('setting_key', 'platform_commission')->first();
+        $platformFeeRate = $commissionSetting ? ((float)$commissionSetting->setting_value / 100) : 0.15;
+        
         $platformFee = $totalAmount * $platformFeeRate;
         $netToOwners = $totalAmount - $platformFee;
 
@@ -491,6 +493,94 @@ class FinancialController extends Controller
         return response()->json([
             'success' => true,
             'receipt_path' => $ledger->receipt_path
+        ], 200);
+    }
+
+    // ==========================================
+    // 8. إحصائيات لوحة التحكم المالية للإدارة (Dashboard)
+    // ==========================================
+    public function getAdminDashboardStats(Request $request)
+    {
+        // 1. إجمالي أرباح النظام
+        $totalSystemProfit = FinancialLedger::where('transaction_type', 'platform_fee')
+                                ->sum('amount');
+                                
+        // 2. أرباح ملاك الشاشات الكلية
+        $totalOwnersProfit = FinancialLedger::whereIn('transaction_type', ['payout_pending', 'payout_completed', 'payout_requested'])
+                                ->sum('amount');
+
+        // جلب نسبة المنصة الحالية
+        $commissionSetting = \App\Models\SystemSetting::where('setting_key', 'platform_commission')->first();
+        $currentRate = $commissionSetting ? (float)$commissionSetting->setting_value : 15.0;
+                                
+        // 3. سجل المعاملات الإعلانية (Ad Transactions)
+        $adTransactions = Advertisement::with(['advertiser', 'screens'])
+                            ->where('payment_status', 'paid')
+                            ->orderBy('ad_id', 'desc')
+                            ->get()
+                            ->map(function ($ad) use ($currentRate) {
+                                $totalCost = (float)$ad->total_cost;
+                                $platformLedger = FinancialLedger::where('advertisement_id', $ad->ad_id)
+                                                    ->where('transaction_type', 'platform_fee')
+                                                    ->first();
+                                
+                                $sfeeAmount = $platformLedger ? (float)$platformLedger->amount : ($totalCost * ($currentRate / 100));
+                                $sfeeRate = $totalCost > 0 ? round(($sfeeAmount / $totalCost) * 100, 1) : $currentRate;
+                                $netOwnerProfit = $totalCost - $sfeeAmount;
+                                
+                                return [
+                                    'ad_id' => $ad->ad_id,
+                                    'title' => $ad->title,
+                                    'advertiser' => $ad->advertiser ? $ad->advertiser->full_name : 'غير معروف',
+                                    'target_screen' => $ad->screens->count() > 0 ? $ad->screens->first()->screen_name . ($ad->screens->count() > 1 ? ' + أخرى' : '') : 'غير محدد',
+                                    'total_price' => $totalCost,
+                                    'sfee_rate' => $sfeeRate,
+                                    'sfee_amount' => $sfeeAmount,
+                                    'net_owner_profit' => $netOwnerProfit,
+                                    'run_time' => $ad->start_date,
+                                    'status' => $ad->status,
+                                ];
+                            });
+
+        // 4. سجل الشاشات المالي الكلي
+        $screensHistory = Screen::withCount('advertisements')
+                            ->with('advertisements', 'street')
+                            ->get()
+                            ->map(function ($screen) {
+                                $totalScreenProfit = FinancialLedger::where('screen_id', $screen->screen_id)
+                                                    ->whereIn('transaction_type', ['payout_pending', 'payout_completed', 'payout_requested'])
+                                                    ->sum('amount');
+                                
+                                $systemCommissionCollected = 0;
+                                foreach ($screen->advertisements as $ad) {
+                                    $platformLedger = FinancialLedger::where('advertisement_id', $ad->ad_id)
+                                                    ->where('transaction_type', 'platform_fee')
+                                                    ->first();
+                                    if ($platformLedger && $ad->screens->count() > 0) {
+                                        $systemCommissionCollected += ((float)$platformLedger->amount / $ad->screens->count());
+                                    }
+                                }
+
+                                return [
+                                    'screen_id' => $screen->screen_id,
+                                    'screen_name' => $screen->screen_name,
+                                    'location' => ($screen->street ? $screen->street->street_name : 'غير محدد'),
+                                    'total_screen_profit' => $totalScreenProfit,
+                                    'system_commission_collected' => $systemCommissionCollected,
+                                    'ads_played_count' => $screen->advertisements_count,
+                                    'status' => $screen->status,
+                                ];
+                            });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_system_profit' => $totalSystemProfit,
+                'total_owners_profit' => $totalOwnersProfit,
+                'current_system_rate' => $currentRate,
+                'ad_transactions' => $adTransactions,
+                'screens_history' => $screensHistory,
+            ]
         ], 200);
     }
 }
