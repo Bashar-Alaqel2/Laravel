@@ -17,6 +17,7 @@ class SupportTicket extends Model
         'priority',
         'status',
         'description',
+        'admin_reply',
     ];
 
     protected $appends = ['created_at_human', 'updated_at_human'];

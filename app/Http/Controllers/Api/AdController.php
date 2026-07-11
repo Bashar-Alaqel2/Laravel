@@ -126,7 +126,9 @@ class AdController extends Controller
             'end_date'          => 'required|date|after_or_equal:start_date',
             'target_start_time' => 'nullable|date_format:H:i', // جديد: استهداف وقت محدد
             'target_end_time'   => 'nullable|date_format:H:i', // جديد
-            'interval_minutes'  => 'required|integer|min:1',   // جديد: كل كم دقيقة يعرض
+            'time_target'       => 'nullable|string',
+            'plays_per_hour'    => 'nullable|integer|min:1',
+            'interval_minutes'  => 'nullable|integer|min:1',   // جديد: كل كم دقيقة يعرض
             'total_cost'        => 'required|numeric',
             'package_name'      => 'nullable|string',
             'screen_ids'        => 'required|array',
@@ -140,8 +142,30 @@ class AdController extends Controller
 
         try {
             $duration = $request->duration ?? 15; // افتراضياً 15 ثانية إذا لم يرسل الرياكت المدة
+            
+            $reqStartTime = $request->target_start_time ?? '00:00';
+            $reqEndTime   = $request->target_end_time   ?? '23:59';
+            
+            if ($request->filled('time_target')) {
+                if ($request->time_target === 'full_day') {
+                    $reqStartTime = '00:00';
+                    $reqEndTime = '23:59';
+                } elseif ($request->time_target === 'peak') {
+                    $reqStartTime = '16:00';
+                    $reqEndTime = '22:00';
+                } elseif ($request->time_target === 'offpeak') {
+                    $reqStartTime = '00:00';
+                    $reqEndTime = '15:59';
+                }
+            }
+
             // 1. حساب السعة المطلوبة بالثواني في الساعة الواحدة
-            $interval = $request->interval_minutes;
+            $interval = 10;
+            if ($request->filled('plays_per_hour')) {
+                $interval = (int) (60 / $request->plays_per_hour);
+            } elseif ($request->filled('interval_minutes')) {
+                $interval = (int) $request->interval_minutes;
+            }
             $allocatedSeconds = (60 / $interval) * $duration; // مثلاً (60/5) * 15 = 180 ثانية
 
             if ($allocatedSeconds > 3600) {
@@ -517,7 +541,9 @@ class AdController extends Controller
             'end_date'          => 'required|date|after_or_equal:start_date',
             'target_start_time' => 'nullable|date_format:H:i',
             'target_end_time'   => 'nullable|date_format:H:i',
-            'interval_minutes'  => 'required|integer|min:1',
+            'time_target'       => 'nullable|string',
+            'plays_per_hour'    => 'nullable|integer|min:1',
+            'interval_minutes'  => 'nullable|integer|min:1',
         ]);
 
         // ── 1. عدد الأيام
@@ -528,11 +554,31 @@ class AdController extends Controller
         // ── 2. نطاق الوقت المستهدف
         $reqStartTime = $request->target_start_time ?? '00:00';
         $reqEndTime   = $request->target_end_time   ?? '23:59';
+        
+        if ($request->filled('time_target')) {
+            if ($request->time_target === 'full_day') {
+                $reqStartTime = '00:00';
+                $reqEndTime = '23:59';
+            } elseif ($request->time_target === 'peak') {
+                $reqStartTime = '16:00';
+                $reqEndTime = '22:00';
+            } elseif ($request->time_target === 'offpeak') {
+                $reqStartTime = '00:00';
+                $reqEndTime = '15:59';
+            }
+        }
+        
         if (strlen($reqStartTime) === 5) $reqStartTime .= ':00';
         if (strlen($reqEndTime)   === 5) $reqEndTime   .= ':00';
 
         // ── 3. مضاعف باقة التكرار
-        $frequency         = (int) $request->interval_minutes;
+        $frequency = 10;
+        if ($request->filled('plays_per_hour')) {
+            $frequency = (int) (60 / $request->plays_per_hour);
+        } elseif ($request->filled('interval_minutes')) {
+            $frequency = (int) $request->interval_minutes;
+        }
+        
         $package           = \App\Models\FrequencyPackage::where('display_interval', $frequency)->first();
         $packageMultiplier = $package ? (double) $package->price_multiplier : 1.0;
 

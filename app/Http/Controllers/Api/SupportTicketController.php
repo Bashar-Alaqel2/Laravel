@@ -12,11 +12,16 @@ class SupportTicketController extends Controller
     {
         $user = $request->user();
         
-        // If the user is maintenance or admin, they might see all tickets.
-        // For now, we return tickets for the authenticated user (ScreenOwner).
-        $tickets = SupportTicket::with('screen')->where('user_id', $user->user_id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        // Smart Scoping:
+        // ScreenOwner (role_id = 8) only gets their own tickets.
+        // Admin, Maintenance, or others get all tickets.
+        if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+            $tickets = SupportTicket::with('screen')->where('user_id', $user->user_id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } else {
+            $tickets = SupportTicket::with(['screen', 'user'])->orderBy('created_at', 'desc')->get();
+        }
             
         return response()->json($tickets);
     }
@@ -51,9 +56,15 @@ class SupportTicketController extends Controller
 
     public function show($id, Request $request)
     {
-        $ticket = SupportTicket::where('id', $id)
-            ->where('user_id', $request->user()->user_id)
-            ->firstOrFail();
+        $user = $request->user();
+        
+        if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+            $ticket = SupportTicket::with('screen')->where('id', $id)
+                ->where('user_id', $user->user_id)
+                ->firstOrFail();
+        } else {
+            $ticket = SupportTicket::with(['screen', 'user'])->findOrFail($id);
+        }
             
         return response()->json($ticket);
     }
