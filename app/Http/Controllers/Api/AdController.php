@@ -273,23 +273,7 @@ class AdController extends Controller
 
             \Illuminate\Support\Facades\DB::beginTransaction();
 
-            // التحقق من الرصيد إذا لم يرفق إيصال دفع
-            if (!$request->hasFile('receipt')) {
-                $totalDeposits = \App\Models\FinancialLedger::where('user_id', $advertiserId)
-                    ->whereIn('transaction_type', ['deposit_completed', 'payment_in'])
-                    ->sum('amount');
-                $totalPayments = \App\Models\FinancialLedger::where('user_id', $advertiserId)
-                    ->where('transaction_type', 'ad_payment')
-                    ->sum('amount');
-                
-                $availableBalance = $totalDeposits - $totalPayments;
 
-                if ($availableBalance < $request->total_cost) {
-                    \Illuminate\Support\Facades\Storage::disk($disk)->delete($path);
-                    \Illuminate\Support\Facades\DB::rollBack();
-                    return response()->json(['success' => false, 'message' => 'عذراً، رصيدك المتاح لا يكفي لإنشاء هذه الحملة. يرجى شحن الرصيد أو إرفاق إيصال التحويل البنكي.'], 400);
-                }
-            }
 
             $ad = Advertisement::create([
                 'advertiser_id'   => $request->advertiser_id ?? $request->user()->user_id,
