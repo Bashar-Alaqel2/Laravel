@@ -273,12 +273,7 @@ class AdController extends Controller
 
             \Illuminate\Support\Facades\DB::beginTransaction();
 
-            // التحقق من الرصيد إذا لم يرفق إيصال دفع
-            // تم إزالة شرط الرصيد المسبق بناءً على طلب العميل ليتم الدفع لاحقاً عبر Stripe أو إيصال
-            if (!$request->hasFile('receipt')) {
-                // سيتم تسجيل الدفعة بالسالب في الرصيد حتى يقوم المستخدم بالسداد
-                // ولن نمنعه من إنشاء الإعلان
-            }
+            // الاعتماد يتم لاحقاً بعد موافقة الرقابة
 
             $ad = Advertisement::create([
                 'advertiser_id'   => $request->advertiser_id ?? $request->user()->user_id,
