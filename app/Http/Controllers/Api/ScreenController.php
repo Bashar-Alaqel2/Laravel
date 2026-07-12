@@ -511,4 +511,69 @@ class ScreenController extends Controller
             'data' => $availability
         ], 200);
     }
+    // ==========================================
+    // 10. الإبلاغ عن شاشة فارغة من الإعلانات
+    // ==========================================
+    public function reportEmpty(Request $request)
+    {
+        $request->validate([
+            'mac_address' => 'required|string',
+            'empty_until' => 'nullable|string',
+        ]);
+
+        $screen = Screen::where('mac_address', $request->mac_address)->first();
+
+        if (!$screen) {
+            return response()->json(['success' => false, 'message' => 'Screen not found'], 404);
+        }
+
+        $targetRoles = ['Admin', 'SuperAdmin', 'Secretary', 'Maintenance'];
+        $managers = \App\Models\User::whereHas('role', function($q) use ($targetRoles) {
+            $q->whereIn('role_name', $targetRoles);
+        })->get();
+
+        $owner = \App\Models\User::find($screen->owner_id);
+
+        $now = now()->format('Y-m-d H:i');
+        
+        $untilText = $request->empty_until 
+            ? "وحتى موعد الإعلان القادم في (" . \Carbon\Carbon::parse($request->empty_until)->format('Y-m-d H:i') . ")" 
+            : "ولفترة غير محددة لعدم وجود إعلانات مجدولة";
+
+        $message = json_encode([
+            'key' => 'notif_msg_screen_empty', 
+            'args' => [
+                'name' => $screen->screen_name, 
+                'time' => $now,
+                'until' => $untilText
+            ]
+        ], JSON_UNESCAPED_UNICODE);
+
+        $title = json_encode(['key' => 'notif_title_screen_empty']);
+
+        $notifiedIds = [];
+
+        foreach ($managers as $manager) {
+            if (!in_array($manager->user_id, $notifiedIds)) {
+                \App\Models\Notification::create([
+                    'user_id' => $manager->user_id,
+                    'title' => $title,
+                    'message' => $message,
+                    'is_read' => false,
+                ]);
+                $notifiedIds[] = $manager->user_id;
+            }
+        }
+
+        if ($owner && !in_array($owner->user_id, $notifiedIds)) {
+            \App\Models\Notification::create([
+                'user_id' => $owner->user_id,
+                'title' => $title,
+                'message' => $message,
+                'is_read' => false,
+            ]);
+        }
+
+        return response()->json(['success' => true]);
+    }
 }
