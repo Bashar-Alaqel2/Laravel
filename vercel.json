@@ -4,7 +4,8 @@
     "env": {
         "CACHE_DRIVER": "array",
         "CACHE_STORE": "array",
-        "SESSION_DRIVER": "array"
+        "SESSION_DRIVER": "array",
+        "FILESYSTEM_DISK": "s3"
     },
 
     "functions": {
