@@ -42,6 +42,20 @@ foreach ($caches as $key => $val) {
 
 putenv('LOG_CHANNEL=stderr'); // Send logs directly to Vercel logs dashboard
 
+// Force Array Cache and S3 disk for Vercel Serverless
+$forceEnvs = [
+    'CACHE_DRIVER' => 'array',
+    'CACHE_STORE' => 'array',
+    'SESSION_DRIVER' => 'array',
+    'FILESYSTEM_DISK' => 's3',
+    'BROADCAST_CONNECTION' => 'log',
+];
+foreach ($forceEnvs as $key => $val) {
+    putenv("$key=$val");
+    $_ENV[$key] = $val;
+    $_SERVER[$key] = $val;
+}
+
 define('LARAVEL_START', microtime(true));
 
 // Register Composer Autoloader
