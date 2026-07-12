@@ -36,7 +36,7 @@ class PlaylistController extends Controller
         // جلب الإعلانات المرتبطة بهذه الشاشة، النشطة، والتي جدولها الزمني يطابق الساعة الحالية فقط!
         $ads = $screen->advertisements()
             ->whereIn('status', ['Active', 'Approved'])
-            ->where('advertisements.is_deleted', false)
+            ->where('advertisements.is_deleted', 0)
             ->whereHas('schedules', function ($q) use ($nowDate, $nowTime) {
                 $q->where('is_active', 1)
                   ->where('start_date', '<=', $nowDate)
