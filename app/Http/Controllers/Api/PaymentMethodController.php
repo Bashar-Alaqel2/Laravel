@@ -12,9 +12,7 @@ class PaymentMethodController extends Controller
     // عرض كل الوسائل (للأدمن أو المعلن)
     public function index(Request $request)
     {
-        $methods = \Illuminate\Support\Facades\Cache::remember('payment_methods', 86400, function() {
-            return PaymentMethod::all();
-        });
+        $methods = PaymentMethod::all();
         
         // إذا لم يكن أدمن، يرى فقط النشط
         if (!$request->user()->can('manage_all')) {
