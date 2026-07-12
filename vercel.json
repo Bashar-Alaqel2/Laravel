@@ -1,6 +1,11 @@
 {
     "version": 2,
     "framework": null,
+    "env": {
+        "CACHE_DRIVER": "array",
+        "CACHE_STORE": "array",
+        "SESSION_DRIVER": "array"
+    },
 
     "functions": {
         "api/index.php": {
