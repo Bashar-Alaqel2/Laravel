@@ -139,58 +139,6 @@ class AuthController extends Controller
         ], 200);
     }
 
-    // ==========================================
-    // تحديث الملف الشخصي وتغيير كلمة المرور
-    // ==========================================
-    public function updateProfile(Request $request)
-    {
-        $user = $request->user();
-
-        $validator = Validator::make($request->all(), [
-            'full_name' => 'required|string|max:100',
-            'email'     => 'required|string|email|max:150|unique:users,email,' . $user->user_id . ',user_id',
-            'phone'     => 'required|string|max:20|unique:users,phone,' . $user->user_id . ',user_id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()->first()], 422);
-        }
-
-        $user->update([
-            'full_name' => $request->full_name,
-            'email'     => $request->email,
-            'phone'     => $request->phone,
-        ]);
-
-        return response()->json([
-            'message' => 'تم تحديث الملف الشخصي بنجاح',
-            'user'    => $user->load('role')
-        ], 200);
-    }
-
-    public function changePassword(Request $request)
-    {
-        $user = $request->user();
-
-        $validator = Validator::make($request->all(), [
-            'current_password' => 'required',
-            'new_password'     => 'required|string|min:6',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()->first()], 422);
-        }
-
-        if (!Hash::check($request->current_password, $user->password_hash)) {
-            return response()->json(['message' => 'كلمة المرور الحالية غير صحيحة'], 400);
-        }
-
-        $user->update([
-            'password_hash' => Hash::make($request->new_password)
-        ]);
-
-        return response()->json(['message' => 'تم تغيير كلمة المرور بنجاح'], 200);
-    }
 
     // ==========================================
     // 3. دالة تسجيل الخروج (Logout)

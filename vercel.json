@@ -6,7 +6,7 @@
         "api/index.php": {
             "runtime": "vercel-php@0.8.0",
             "maxDuration": 60,
-            "excludeFiles": "{tests/**,database/factories/**,database/seeders/**,storage/framework/cache/**,storage/framework/sessions/**}"
+            "excludeFiles": "{tests/**,database/factories/**,database/seeders/**}"
         }
     },
     "headers": [
