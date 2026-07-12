@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use App\Models\PlaybackLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Response;
-use Meneses\LaravelMpdf\Facades\LaravelMpdf as PDF;
 
 class PlaybackLogController extends Controller
 {
@@ -63,14 +62,7 @@ class PlaybackLogController extends Controller
         $format = $request->input('format', 'csv');
 
         if ($format === 'pdf') {
-            $pdf = PDF::loadView('pdf.playback_logs', compact('logs'), [], [
-                'mode' => 'utf-8',
-                'format' => 'A4',
-                'orientation' => 'P',
-                'autoScriptToLang' => true,
-                'autoLangToFont' => true,
-            ]);
-            return $pdf->download('playback_logs_' . date('Y-m-d_H-i-s') . '.pdf');
+            return response()->json(['success' => false, 'message' => 'PDF export is not supported in this environment. Please use CSV.'], 400);
         }
 
         $headers = [
