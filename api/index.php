@@ -63,11 +63,21 @@ require __DIR__ . '/../vendor/autoload.php';
 
 // Bootstrap Laravel Application
 /** @var Illuminate\Foundation\Application $app */
-$app = require_once __DIR__.'/../bootstrap/app.php';
+$app = require_once __DIR__ . '/../bootstrap/app.php';
 $app->useStoragePath($storagePath);
+
+// Force removal of cached config so our injected env variables actually take effect
+if (file_exists(__DIR__ . '/../bootstrap/cache/config.php')) {
+    unlink(__DIR__ . '/../bootstrap/cache/config.php');
+}
+
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
 
 // Capture the Request
 $request = Illuminate\Http\Request::capture();
 
 // Handle and send response
-$app->handleRequest($request);
+$response = $kernel->handle($request);
+$response->send();
+
+$kernel->terminate($request, $response);
