@@ -44,7 +44,5 @@ class AppServiceProvider extends ServiceProvider
 
             // إذا لم تكن موجودة، يعود Laravel للوضع الافتراضي (وهو الرفض)
         });
-
-        \App\Models\FinancialLedger::observe(\App\Observers\FinancialLedgerObserver::class);
     }
 }

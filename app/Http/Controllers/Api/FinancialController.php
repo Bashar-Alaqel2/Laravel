@@ -163,8 +163,20 @@ class FinancialController extends Controller
             
             $totalPayments = $ledger->whereIn('transaction_type', ['payment', 'payment_in'])->where('status', 'completed')->sum('amount');
             
+            // حساب أرباح المنصة الصافية
+            $platformProfit = $ledger->where('transaction_type', 'platform_fee')->where('status', 'completed')->sum('amount');
+            
+            // حساب المستحقات المطلوبة لملاك الشاشات (لم تسحب بعد)
+            $ownersLiabilities = $ledger->whereIn('transaction_type', ['payout_pending', 'payout_requested'])->sum('amount');
+            
+            // حساب ما تم تسديده لملاك الشاشات فعلياً
+            $ownersPaid = $ledger->where('transaction_type', 'payout_completed')->sum('amount');
+            
             return [
                 'total_payments' => $totalPayments,
+                'platform_profit' => $platformProfit,
+                'owners_liabilities' => $ownersLiabilities,
+                'owners_paid' => $ownersPaid,
                 'transactions'   => $ledger
             ];
         });
