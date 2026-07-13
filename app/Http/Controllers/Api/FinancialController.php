@@ -533,4 +533,95 @@ class FinancialController extends Controller
             'receipt_path' => $ledger->receipt_path
         ], 200);
     }
+
+    // ==========================================
+    // 8. مسح السجلات القديمة وأرشفتها (توليد CSV + أرصدة افتتاحية)
+    // ==========================================
+    public function archiveRecords(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user || $user->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'months' => 'required|integer|in:3,6,12,24'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => $validator->errors()->first()], 400);
+        }
+
+        $cutoffDate = \Carbon\Carbon::now()->subMonths($request->months)->endOfDay();
+
+        // 1. Fetch records to archive
+        $recordsToArchive = FinancialLedger::where('created_at', '<=', $cutoffDate)->get();
+
+        if ($recordsToArchive->isEmpty()) {
+            return response()->json(['message' => 'لا توجد سجلات أقدم من المدة المحددة لأرشفتها'], 400);
+        }
+
+        // 2. Generate CSV Backup
+        $directory = storage_path('app/public/archives');
+        if (!file_exists($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $filename = 'financial_archive_' . now()->format('Y_m_d_His') . '.csv';
+        $path = $directory . '/' . $filename;
+        
+        $handle = fopen($path, 'w');
+        // Add BOM for Excel Arabic support
+        fputs($handle, $bom = (chr(0xEF) . chr(0xBB) . chr(0xBF)));
+        
+        fputcsv($handle, ['ID', 'User ID', 'Ad ID', 'Screen ID', 'Transaction Type', 'Amount', 'Payment Method', 'Reference Number', 'Status', 'Notes', 'Created At']);
+        
+        foreach ($recordsToArchive as $record) {
+            fputcsv($handle, [
+                $record->ledger_id,
+                $record->user_id,
+                $record->advertisement_id,
+                $record->screen_id,
+                $record->transaction_type,
+                $record->amount,
+                $record->payment_method,
+                $record->reference_number,
+                $record->status,
+                $record->notes,
+                $record->created_at
+            ]);
+        }
+        fclose($handle);
+
+        // 3. Aggregate sums by user_id and transaction_type
+        $aggregates = FinancialLedger::select('user_id', 'transaction_type', DB::raw('SUM(amount) as total_amount'))
+            ->where('created_at', '<=', $cutoffDate)
+            ->where('status', 'completed')
+            ->groupBy('user_id', 'transaction_type')
+            ->get();
+
+        // 4. Delete old records
+        FinancialLedger::where('created_at', '<=', $cutoffDate)->delete();
+
+        // 5. Insert Rollover Balances
+        foreach ($aggregates as $agg) {
+            FinancialLedger::create([
+                'user_id' => $agg->user_id,
+                'transaction_type' => $agg->transaction_type,
+                'amount' => $agg->total_amount,
+                'status' => 'completed',
+                'notes' => 'رصيد مرحل من الأرشيف (أقدم من ' . $request->months . ' أشهر)',
+                'created_at' => clone $cutoffDate,
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Clear cache
+        Cache::flush();
+
+        return response()->json([
+            'message' => 'تم أرشفة ' . $recordsToArchive->count() . ' سجل بنجاح وحفظ نسخة احتياطية.',
+            'download_url' => asset('storage/archives/' . $filename)
+        ], 200);
+    }
 }

@@ -147,6 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/financial/receipt/{id}', [App\Http\Controllers\Api\FinancialController::class, 'getReceipt']);
     Route::get('/financial/my-earnings', [App\Http\Controllers\Api\FinancialController::class, 'getOwnerEarnings']);
     Route::post('/financial/request-payout', [App\Http\Controllers\Api\FinancialController::class, 'requestPayout']);
+    Route::post('/financial/archive', [App\Http\Controllers\Api\FinancialController::class, 'archiveRecords']);
     
     Route::apiResource('payment-methods', App\Http\Controllers\Api\PaymentMethodController::class);
     Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createPaymentIntent']);
