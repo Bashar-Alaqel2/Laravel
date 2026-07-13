@@ -482,6 +482,16 @@ class AdController extends Controller
             ]);
         }
 
+        // إشعار الشاشات بضرورة تحديث قائمة التشغيل فوراً
+        foreach ($ad->screens as $screen) {
+            \Illuminate\Support\Facades\DB::table('screen_commands')->insert([
+                'target_screen' => $screen->mac_address,
+                'command'       => 'SYNC_PLAYLIST',
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => "تم تغيير حالة الإعلان بنجاح.",
@@ -508,6 +518,16 @@ class AdController extends Controller
         $ad->is_deleted = 1;
         $ad->deleted_at = now();
         $ad->save();
+
+        // إشعار الشاشات بضرورة تحديث قائمة التشغيل فوراً
+        foreach ($ad->screens as $screen) {
+            \Illuminate\Support\Facades\DB::table('screen_commands')->insert([
+                'target_screen' => $screen->mac_address,
+                'command'       => 'SYNC_PLAYLIST',
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+        }
 
         return response()->json(['message' => 'تم حذف الإعلان بنجاح.'], 200);
     }

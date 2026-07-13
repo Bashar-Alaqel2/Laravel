@@ -88,6 +88,16 @@ class StripePaymentController extends Controller
                 'status' => 'Active' // يبدأ العرض فوراً بعد الدفع
             ]);
 
+            // إشعار الشاشات بضرورة تحديث قائمة التشغيل فوراً
+            foreach ($ad->screens as $screen) {
+                \Illuminate\Support\Facades\DB::table('screen_commands')->insert([
+                    'target_screen' => $screen->mac_address,
+                    'command'       => 'SYNC_PLAYLIST',
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
             // إرسال إشعار للمعلن
             \App\Models\Notification::create([
                 'user_id' => $ad->advertiser_id,
