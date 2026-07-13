@@ -264,10 +264,35 @@ class ScreenController extends Controller
             return response()->json(['message' => 'الشاشة غير مربوطة'], 404);
         }
 
-        // نجعل الشاشة Online ونسجل وقت الاتصال
+        // التحقق من فترة الانقطاع للتعويض
+        if ($screen->disconnected_at) {
+            $offlineDurationMinutes = \Carbon\Carbon::parse($screen->disconnected_at)->diffInMinutes(now());
+
+            if ($offlineDurationMinutes > 0) {
+                // جلب الإعلانات التي تمت مقاطعتها بسبب هذا الانقطاع
+                $interruptedAds = $screen->advertisements()
+                    ->where('status', 'interrupted')
+                    ->where('rejection_reason', 'system_offline_interruption')
+                    ->get();
+
+                foreach ($interruptedAds as $ad) {
+                    // تمديد تاريخ الانتهاء بمقدار الدقائق التي توقفت فيها الشاشة
+                    $newEndDate = \Carbon\Carbon::parse($ad->end_date)->addMinutes($offlineDurationMinutes);
+                    
+                    $ad->update([
+                        'status' => 'Active',
+                        'end_date' => $newEndDate->toDateTimeString(),
+                        'rejection_reason' => null
+                    ]);
+                }
+            }
+        }
+
+        // نجعل الشاشة Online ونسجل وقت الاتصال ونصفر وقت الانقطاع
         $screen->update([
             'status' => 'Online',
             'linked_at' => now(), // وقت آخر نبض/اتصال
+            'disconnected_at' => null // تصفير وقت الانقطاع لأنها عادت للعمل
         ]);
 
         event(new \App\Events\ScreenUpdated($screen));

@@ -13,3 +13,6 @@ Schedule::command('ads:clean-deleted-files --days=30')->dailyAt('02:00');
 
 // تنظيف سجلات التشغيل القديمة لتخفيف قاعدة البيانات
 Schedule::command('logs:cleanup --days=30')->dailyAt('03:00');
+
+// مراقبة الشاشات المنقطعة وإيقاف إعلاناتها مؤقتاً
+Schedule::command('screens:check-downtime')->everyFiveMinutes();
