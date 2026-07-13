@@ -38,7 +38,7 @@ class AdController extends Controller
                 $query->where('ad_title', 'like', '%' . $request->search . '%');
             }
 
-            $ads = $query->with(['advertiser', 'screens.street.region.governorate', 'category'])
+            $ads = $query->with(['advertiser', 'screens.street.region.governorate', 'category', 'schedules'])
                          ->orderBy('uploaded_at', 'desc')
                          ->paginate(50);
             
