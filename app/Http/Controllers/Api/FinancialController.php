@@ -127,50 +127,68 @@ class FinancialController extends Controller
         $userId = $user ? $user->user_id : 'guest';
         $role = $user ? $user->role_id : 'guest';
         $type = $request->has('type') ? $request->type : 'all';
-        $cacheKey = "financial_ledger_{$userId}_{$role}_{$type}";
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $cacheKey = "financial_ledger_{$userId}_{$role}_{$type}_{$startDate}_{$endDate}";
 
-        $data = Cache::remember($cacheKey, 300, function () use ($user, $request) {
-            $query = FinancialLedger::with(['user', 'advertisement', 'screen']);
+        $data = Cache::remember($cacheKey, 60, function () use ($user, $request, $startDate, $endDate) {
+            $baseQuery = FinancialLedger::query();
 
             if ($user) {
                 if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
-                    // ملاك الشاشات يشاهدون فقط حركاتهم الخاصة
-                    $query->where('user_id', $user->user_id);
+                    $baseQuery->where('user_id', $user->user_id);
                 } elseif ($user->role && $user->role->role_name === 'Secretary') {
-                    // السكرتير يرى فقط الدفعات المعلقة
-                    $query->where('transaction_type', 'payment_pending');
+                    $baseQuery->where('transaction_type', 'payment_pending');
                 } else {
-                    // للمدراء
                     if ($request->has('user_id')) {
-                        $query->where('user_id', $request->user_id);
+                        $baseQuery->where('user_id', $request->user_id);
                     }
                 }
             }
 
-            if ($request->has('type')) {
-                $query->where('transaction_type', $request->type);
+            if ($request->has('type') && $request->type !== 'all') {
+                $baseQuery->where('transaction_type', $request->type);
             }
 
-            $query->select([
-                'ledger_id', 'advertisement_id', 'screen_id', 'user_id', 
-                'transaction_type', 'amount', 'payment_method', 'reference_number', 
-                'status', 'notes', 'created_at', 'updated_at'
-            ]);
+            // --- Aggregations (Always All-Time to keep dashboard totals accurate) ---
+            $aggQuery = clone $baseQuery;
             
-            $query->addSelect(\Illuminate\Support\Facades\DB::raw('CASE WHEN receipt_path IS NOT NULL THEN 1 ELSE 0 END as has_receipt'));
+            $totalPayments = (clone $aggQuery)->whereIn('transaction_type', ['payment', 'payment_in'])
+                                             ->where('status', 'completed')
+                                             ->sum('amount');
+                                             
+            $platformProfit = (clone $aggQuery)->where('transaction_type', 'platform_fee')
+                                              ->where('status', 'completed')
+                                              ->sum('amount');
+                                              
+            $ownersLiabilities = (clone $aggQuery)->whereIn('transaction_type', ['payout_pending', 'payout_requested'])
+                                                 ->sum('amount');
+                                                 
+            $ownersPaid = (clone $aggQuery)->where('transaction_type', 'payout_completed')
+                                          ->sum('amount');
 
-            $ledger = $query->orderBy('created_at', 'desc')->get();
+            // --- Transactions Query (Date Filtered for Performance) ---
+            $txQuery = clone $baseQuery;
             
-            $totalPayments = $ledger->whereIn('transaction_type', ['payment', 'payment_in'])->where('status', 'completed')->sum('amount');
-            
-            // حساب أرباح المنصة الصافية
-            $platformProfit = $ledger->where('transaction_type', 'platform_fee')->where('status', 'completed')->sum('amount');
-            
-            // حساب المستحقات المطلوبة لملاك الشاشات (لم تسحب بعد)
-            $ownersLiabilities = $ledger->whereIn('transaction_type', ['payout_pending', 'payout_requested'])->sum('amount');
-            
-            // حساب ما تم تسديده لملاك الشاشات فعلياً
-            $ownersPaid = $ledger->where('transaction_type', 'payout_completed')->sum('amount');
+            if ($startDate && $endDate) {
+                $txQuery->whereBetween('created_at', [
+                    \Carbon\Carbon::parse($startDate)->startOfDay(),
+                    \Carbon\Carbon::parse($endDate)->endOfDay()
+                ]);
+            } else {
+                // Soft Archiving: Default to last 60 days if no date is provided
+                $txQuery->where('created_at', '>=', \Carbon\Carbon::now()->subDays(60));
+            }
+
+            $txQuery->with(['user', 'advertisement', 'screen'])
+                    ->select([
+                        'ledger_id', 'advertisement_id', 'screen_id', 'user_id', 
+                        'transaction_type', 'amount', 'payment_method', 'reference_number', 
+                        'status', 'notes', 'created_at', 'updated_at'
+                    ])
+                    ->addSelect(\Illuminate\Support\Facades\DB::raw('CASE WHEN receipt_path IS NOT NULL THEN 1 ELSE 0 END as has_receipt'));
+
+            $ledger = $txQuery->orderBy('created_at', 'desc')->get();
             
             return [
                 'total_payments' => $totalPayments,
