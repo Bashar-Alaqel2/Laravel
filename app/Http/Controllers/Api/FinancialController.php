@@ -77,8 +77,13 @@ class FinancialController extends Controller
     // ==========================================
     public function distributeEarnings(Advertisement $ad, $totalAmount)
     {
-        // نسبة المنصة (مثلاً 20%)
-        $platformFeeRate = 0.20;
+        // جلب نسبة المنصة من الإعدادات، وإذا لم تكن موجودة نعتبرها 20%
+        $settings = \Illuminate\Support\Facades\Cache::rememberForever('system_settings_cache', function () {
+            return \App\Models\SystemSetting::all()->pluck('setting_value', 'setting_key')->toArray();
+        });
+        $feePercentage = isset($settings['platform_fee_percentage']) ? (float)$settings['platform_fee_percentage'] : 20.0;
+        
+        $platformFeeRate = $feePercentage / 100;
         $platformFee = $totalAmount * $platformFeeRate;
         $netToOwners = $totalAmount - $platformFee;
 
