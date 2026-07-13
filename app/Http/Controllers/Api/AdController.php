@@ -263,11 +263,14 @@ class AdController extends Controller
 
             // رفع الملف بناءً على مساحة التخزين (يدعم المحلي بدون S3)
             $disk = env('FILESYSTEM_DISK', 'public');
-            $path = $request->file('file')->store('ads', $disk);
-            $sizeInMB = $request->file('file')->getSize() / 1024 / 1024;
-            
-            // جلب الرابط العام للملف
-            $fileUrl = \Illuminate\Support\Facades\Storage::disk($disk)->url($path);
+            try {
+                $path = $request->file('file')->store('ads', $disk);
+                $sizeInMB = $request->file('file')->getSize() / 1024 / 1024;
+                // جلب الرابط العام للملف
+                $fileUrl = \Illuminate\Support\Facades\Storage::disk($disk)->url($path);
+            } catch (\Exception $e) {
+                return response()->json(['success' => false, 'message' => 'فشل في رفع الملف: ' . $e->getMessage()], 500);
+            }
 
             $advertiserId = $request->advertiser_id ?? $request->user()->user_id;
 
