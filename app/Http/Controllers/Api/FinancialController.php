@@ -209,7 +209,7 @@ class FinancialController extends Controller
                 
             $availableBalance = $totalEarnings - $withdrawn - $requested;
 
-            $pendingLogs = FinancialLedger::with('advertisement')
+            $pendingLogs = FinancialLedger::with(['advertisement', 'screen'])
                 ->where('user_id', $userId)
                 ->whereIn('transaction_type', ['payout_pending', 'payout_requested', 'payout_completed', 'payout_rejected'])
                 ->orderBy('created_at', 'desc')
