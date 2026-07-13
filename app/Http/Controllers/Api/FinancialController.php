@@ -150,8 +150,23 @@ class FinancialController extends Controller
                 $baseQuery->where('transaction_type', $request->type);
             }
 
-            // --- Aggregations (Always All-Time to keep dashboard totals accurate) ---
-            $aggQuery = clone $baseQuery;
+            // --- Apply Date Filters for BOTH Aggregations and Transactions ---
+            $filteredQuery = clone $baseQuery;
+            
+            if ($startDate || $endDate) {
+                if ($startDate) {
+                    $filteredQuery->where('created_at', '>=', \Carbon\Carbon::parse($startDate)->startOfDay());
+                }
+                if ($endDate) {
+                    $filteredQuery->where('created_at', '<=', \Carbon\Carbon::parse($endDate)->endOfDay());
+                }
+            } else {
+                // Soft Archiving: Default to last 60 days if no date is provided
+                $filteredQuery->where('created_at', '>=', \Carbon\Carbon::now()->subDays(60));
+            }
+
+            // --- Aggregations (Now respects Date Filters!) ---
+            $aggQuery = clone $filteredQuery;
             
             $totalPayments = (clone $aggQuery)->whereIn('transaction_type', ['payment', 'payment_in'])
                                              ->where('status', 'completed')
@@ -167,18 +182,8 @@ class FinancialController extends Controller
             $ownersPaid = (clone $aggQuery)->where('transaction_type', 'payout_completed')
                                           ->sum('amount');
 
-            // --- Transactions Query (Date Filtered for Performance) ---
-            $txQuery = clone $baseQuery;
-            
-            if ($startDate && $endDate) {
-                $txQuery->whereBetween('created_at', [
-                    \Carbon\Carbon::parse($startDate)->startOfDay(),
-                    \Carbon\Carbon::parse($endDate)->endOfDay()
-                ]);
-            } else {
-                // Soft Archiving: Default to last 60 days if no date is provided
-                $txQuery->where('created_at', '>=', \Carbon\Carbon::now()->subDays(60));
-            }
+            // --- Transactions Query ---
+            $txQuery = clone $filteredQuery;
 
             $txQuery->with(['user', 'advertisement', 'screen'])
                     ->select([
