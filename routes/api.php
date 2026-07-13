@@ -99,6 +99,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [App\Http\Controllers\Api\NotificationController::class, 'index']);
     Route::put('/notifications/{id}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
     Route::put('/notifications/read-all', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/delete-read', [App\Http\Controllers\Api\NotificationController::class, 'deleteRead']);
+    Route::delete('/notifications/archive', [App\Http\Controllers\Api\NotificationController::class, 'archive']);
     Route::delete('/notifications/{id}', [App\Http\Controllers\Api\NotificationController::class, 'destroy']);
     
     // === مسارات القوائم المنسدلة (Lookups) ===

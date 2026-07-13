@@ -92,4 +92,40 @@ class NotificationController extends Controller
             'message' => 'تم حذف الإشعار بنجاح.'
         ]);
     }
+
+    /**
+     * Delete all read notifications.
+     */
+    public function deleteRead(Request $request)
+    {
+        $count = Notification::where('user_id', $request->user()->user_id)
+            ->where('is_read', 1)
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم مسح ' . $count . ' إشعار مقروء بنجاح.'
+        ]);
+    }
+
+    /**
+     * Delete notifications older than a specific date.
+     */
+    public function archive(Request $request)
+    {
+        $request->validate([
+            'months' => 'required|integer|in:1,3,6,12,24'
+        ]);
+        
+        $cutoffDate = \Carbon\Carbon::now()->subMonths($request->months)->endOfDay();
+
+        $count = Notification::where('user_id', $request->user()->user_id)
+            ->where('created_at', '<=', $cutoffDate)
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم مسح ' . $count . ' إشعار قديم بنجاح.'
+        ]);
+    }
 }
