@@ -122,7 +122,7 @@ class AdController extends Controller
             'category_id'       => 'nullable|exists:categories,category_id',
             'duration'          => 'nullable|integer|min:1', 
             'file'              => 'required|file|mimes:mp4,mov,avi,jpeg,png,jpg|max:51200', 
-            'start_date'        => 'required|date',
+            'start_date'        => 'required|date|after_or_equal:today',
             'end_date'          => 'required|date|after_or_equal:start_date',
             'target_start_time' => 'nullable|date_format:H:i', // جديد: استهداف وقت محدد
             'target_end_time'   => 'nullable|date_format:H:i', // جديد
