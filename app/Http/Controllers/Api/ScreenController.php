@@ -576,4 +576,37 @@ class ScreenController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    // ==========================================
+    // 11. استقبال لقطة شاشة حية من التطبيق
+    // ==========================================
+    public function uploadScreenshot(Request $request)
+    {
+        $request->validate([
+            'mac_address' => 'required|string',
+            'image'       => 'required|image|max:5120', // أقصى حجم 5 ميجابايت
+        ]);
+
+        $screen = Screen::where('mac_address', $request->mac_address)->first();
+
+        if (!$screen) {
+            return response()->json(['success' => false, 'message' => 'Screen not found'], 404);
+        }
+
+        // مسار التخزين
+        $path = $request->file('image')->store('screenshots', 'public');
+        $url = \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+
+        // تحديث قاعدة البيانات
+        $screen->last_screenshot_url = $url;
+        $screen->last_screenshot_at = now();
+        $screen->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Screenshot uploaded successfully',
+            'url'     => $url,
+            'time'    => $screen->last_screenshot_at
+        ], 200);
+    }
 }

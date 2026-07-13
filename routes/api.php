@@ -20,6 +20,8 @@ Route::post('/screens/report-empty', [ScreenController::class, 'reportEmpty']);
 Route::post('/screens/playback-log', [ScreenController::class, 'recordPlaybackLog']);
 Route::get('/screens/check', [ScreenController::class, 'check']);
 Route::post('/screens/generate-id', [ScreenController::class, 'generateId']);
+Route::post('/screens/upload-screenshot', [ScreenController::class, 'uploadScreenshot']);
+Route::post('/screens/{id}/command', [ScreenController::class, 'sendCommand']);
 Route::get('/playlist', [App\Http\Controllers\Api\PlaylistController::class, 'getPlaylist']);
 Route::get('/settings', function() { return response()->json(['success' => true, 'data' => []]); });
 
