@@ -284,6 +284,26 @@ class ScreenController extends Controller
                         'end_date' => $newEndDate->toDateTimeString(),
                         'rejection_reason' => null
                     ]);
+
+                    // إرسال إشعار للمعلن
+                    \App\Models\Notification::create([
+                        'user_id' => $ad->advertiser_id,
+                        'title' => 'تم تعويض إعلانك تلقائياً 🎁',
+                        'message' => "تم تمديد فترة إعلانك ({$ad->title}) بمقدار {$offlineDurationMinutes} دقيقة كتعويض عن فترة انقطاع مؤقتة في شاشة: {$screen->screen_name}."
+                    ]);
+
+                    // إرسال إشعار للإدارة
+                    $admins = \App\Models\User::whereHas('role', function($q) {
+                        $q->where('role_name', 'Admin');
+                    })->get();
+
+                    foreach ($admins as $admin) {
+                        \App\Models\Notification::create([
+                            'user_id' => $admin->user_id,
+                            'title' => 'تعويض إعلان تلقائي 🔄',
+                            'message' => "تم تفعيل وإضافة {$offlineDurationMinutes} دقيقة تعويضاً للإعلان: ({$ad->title}) للمعلن: ({$ad->advertiser->name}) بسبب عودة شاشة ({$screen->screen_name}) للعمل."
+                        ]);
+                    }
                 }
             }
         }
