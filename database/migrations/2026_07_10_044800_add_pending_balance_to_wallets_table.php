@@ -9,20 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-        Schema::table('wallets', function (Blueprint $table) {
-            $table->decimal('pending_balance', 10, 2)->default(0.00)->after('available_balance');
-        });
+    public function up(): void {
+        // Table 'wallets' was deleted in a previous migration (restructure_financial_system).
+        // This migration is obsolete and safely skipped.
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
-    {
-        Schema::table('wallets', function (Blueprint $table) {
-            $table->dropColumn('pending_balance');
-        });
+    public function down(): void {
+        // Obsolete
     }
 };
