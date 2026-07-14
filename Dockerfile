@@ -1,19 +1,11 @@
-# استخدام نسخة Apache الرسمية والمستقرة لـ Laravel
-FROM php:8.4-apache
+# استخدام نسخة CLI الخفيفة جداً (لتجنب مشاكل Apache MPM المعقدة)
+FROM php:8.4-cli
 
 # تثبيت الحزم الأساسية
-RUN apt-get update && apt-get install -y libpq-dev zip unzip libpng-dev
+RUN apt-get update && apt-get install -y libpq-dev zip unzip
 
-# تفعيل إضافات قاعدة البيانات
-RUN docker-php-ext-install pdo pdo_pgsql gd
-
-# تفعيل ميزة Rewrite في خادم Apache (مهم جداً لـ Laravel)
-RUN a2enmod rewrite
-
-# تغيير مجلد Apache الافتراضي ليكون مجلد public الخاص بـ Laravel
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+# تفعيل إضافات قاعدة البيانات، والأهم: تفعيل إضافة pcntl لتمكين العمال (Workers)
+RUN docker-php-ext-install pdo pdo_pgsql pcntl
 
 # تثبيت Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -24,18 +16,17 @@ COPY . /var/www/html
 # تحديد مسار العمل
 WORKDIR /var/www/html
 
+# إعطاء صلاحيات الكتابة كإجراء احتياطي
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
 # تحميل حزم Laravel
 RUN composer install --optimize-autoloader --no-dev
 
-# إعطاء صلاحيات الكتابة كإجراء احتياطي لملفات التخزين المؤقت
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# تحديد عدد العمال (Workers) لتمكين السيرفر من معالجة عدة طلبات في وقت واحد بدون أن يختنق
+ENV PHP_CLI_SERVER_WORKERS=10
 
-# تحديد المنفذ الذي سيعمل عليه Apache (يتماشى مع Railway)
+# تحديد المنفذ الافتراضي الثابت لـ Railway
 EXPOSE 8080
 
-# تغيير منفذ Apache إلى 8080
-RUN sed -i 's/Listen 80/Listen 8080/g' /etc/apache2/ports.conf
-RUN sed -i 's/:80/:8080/g' /etc/apache2/sites-available/000-default.conf
-
-# تشغيل خادم Apache في الواجهة
-CMD ["apache2-foreground"]
+# تشغيل خادم PHP الداخلي مباشرة (بدون artisan serve) لكي يتم تفعيل الـ Workers بنجاح وحل مشكلة 502
+CMD ["php", "-S", "0.0.0.0:8080", "-t", "public/"]
