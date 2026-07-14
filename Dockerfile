@@ -1,35 +1,29 @@
-# استخدام نسخة PHP مع خادم Apache
-FROM php:8.4-apache
+# استخدام نسخة CLI الخفيفة والسريعة جداً (بدون خادم Apache لتجنب أي أعطال أو أخطاء MPM)
+FROM php:8.4-cli
 
-# تثبيت الحزم المطلوبة وتفعيل إضافات قاعدة البيانات
-RUN apt-get update && apt-get install -y libpq-dev zip unzip \
-    && docker-php-ext-install pdo pdo_pgsql
+# تثبيت الحزم الأساسية
+RUN apt-get update && apt-get install -y libpq-dev zip unzip
 
-# إصلاح مشكلة الـ MPM الشهيرة في Apache بشكل آمن
-RUN a2dismod mpm_event || true
-RUN a2enmod mpm_prefork || true
-
-# تمكين mod_rewrite
-RUN a2enmod rewrite
+# تفعيل إضافات قاعدة البيانات، والأهم: تفعيل إضافة pcntl لتمكين العمال (Workers)
+RUN docker-php-ext-install pdo pdo_pgsql pcntl
 
 # تثبيت Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# نسخ ملفات المشروع بالكامل إلى الحاوية
+# نسخ ملفات المشروع بالكامل إلى داخل الحاوية
 COPY . /var/www/html
 
-# تغيير المنفذ ليتوافق مع المنفذ الديناميكي الخاص بـ Railway بشكل صحيح
-RUN sed -i "s/Listen 80/Listen \${PORT}/g" /etc/apache2/ports.conf
-RUN sed -i "s/<VirtualHost \*:80>/<VirtualHost \*:\${PORT}>/g" /etc/apache2/sites-available/000-default.conf
+# تحديد مسار العمل
+WORKDIR /var/www/html
 
-# إعداد public كمسار افتراضي لـ Apache
-RUN sed -i "s|/var/www/html|/var/www/html/public|g" /etc/apache2/sites-available/000-default.conf
-
-# إعطاء صلاحيات الكتابة للمجلدات المهمة في Laravel
+# إعطاء صلاحيات الكتابة كإجراء احتياطي
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # تحميل حزم Laravel
 RUN composer install --optimize-autoloader --no-dev
 
-# بدء تشغيل Apache في الواجهة الأمامية
-CMD ["apache2-foreground"]
+# تحديد عدد العمال (Workers) لتمكين السيرفر من معالجة عدة طلبات في وقت واحد بدون أن يختنق (CORS fix)
+ENV PHP_CLI_SERVER_WORKERS=10
+
+# تشغيل سيرفر Laravel الداخلي السريع، وربطه بالمنفذ الديناميكي الخاص بـ Railway
+CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
