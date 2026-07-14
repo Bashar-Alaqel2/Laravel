@@ -3,29 +3,36 @@ FROM php:8.4-cli
 
 # تثبيت الحزم الأساسية وإضافات قاعدة البيانات PostgreSQL
 RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    libpq-dev \
-    zip \
-    unzip \
-    git \
-    curl
+# استخدام نسخة PHP مع خادم Apache
+FROM php:8.4-apache
 
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd
+# تثبيت الحزم المطلوبة وتفعيل إضافات قاعدة البيانات
+RUN apt-get update && apt-get install -y libpq-dev zip unzip \
+    && docker-php-ext-install pdo pdo_pgsql
 
-WORKDIR /var/www/html
-COPY . /var/www/html
+# إصلاح مشكلة الـ MPM الشهيرة في Apache مع PHP 8.4
+RUN a2dismod mpm_event && a2enmod mpm_prefork
 
+# تمكين mod_rewrite
+RUN a2enmod rewrite
+
+# تثبيت Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# تثبيت الحزم (بدون تجاهل الإصدار لأننا نستخدم 8.4 المناسب لمشروعك)
+# نسخ ملفات المشروع بالكامل إلى الحاوية
+COPY . /var/www/html
+
+# تغيير المنفذ ليتوافق مع المنفذ الديناميكي الخاص بـ Railway
+RUN sed -i "s/80/\${PORT:-8000}/g" /etc/apache2/sites-available/000-default.conf /etc/apache2/ports.conf
+
+# إعداد public كمسار افتراضي لـ Apache
+RUN sed -i "s|/var/www/html|/var/www/html/public|g" /etc/apache2/sites-available/000-default.conf
+
+# إعطاء صلاحيات الكتابة للمجلدات المهمة في Laravel
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+# تحميل حزم Laravel
 RUN composer install --optimize-autoloader --no-dev
 
-# تشغيل سيرفر Laravel الداخلي السريع، وربطه بالمنفذ الديناميكي الخاص بـ Railway
-# تحديد عدد العمال (Workers) لتمكين السيرفر من معالجة عدة طلبات في وقت واحد بدون أن يتعطل (CORS fix)
-ENV PHP_CLI_SERVER_WORKERS=10
-
-# تشغيل سيرفر Laravel الداخلي السريع، وربطه بالمنفذ الديناميكي الخاص بـ Railway
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+# بدء تشغيل Apache في الواجهة الأمامية
+CMD ["apache2-foreground"]
