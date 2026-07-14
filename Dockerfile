@@ -28,5 +28,6 @@ ENV PHP_CLI_SERVER_WORKERS=10
 # تحديد المنفذ الافتراضي الثابت لـ Railway
 EXPOSE 8080
 
-# تشغيل خادم PHP الداخلي مباشرة (بدون artisan serve) لكي يتم تفعيل الـ Workers بنجاح وحل مشكلة 502
-CMD ["php", "-S", "0.0.0.0:8080", "-t", "public/"]
+# تشغيل خادم PHP الداخلي باستخدام المنفذ الديناميكي الخاص بـ Railway
+# نستخدم الصيغة النصية (Shell Form) لكي يتم التعرف على المتغير $PORT الذي يفرضه Railway
+CMD php -S 0.0.0.0:${PORT:-8080} -t public/
