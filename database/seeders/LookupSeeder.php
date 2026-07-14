@@ -28,5 +28,19 @@ class LookupSeeder extends Seeder
         foreach ($categories as $cat) {
             DB::table('categories')->updateOrInsert(['name' => $cat['name']], $cat);
         }
+
+        // 3. إضافة المحافظات الأساسية (لكي تظهر في واجهة إضافة شاشة)
+        $governorates = [
+            ['name' => 'صنعاء'],
+            ['name' => 'عدن'],
+            ['name' => 'تعز'],
+            ['name' => 'حضرموت'],
+            ['name' => 'الحديدة'],
+            ['name' => 'إب'],
+        ];
+
+        foreach ($governorates as $gov) {
+            DB::table('governorates')->updateOrInsert(['name' => $gov['name']], $gov);
+        }
     }
 }
