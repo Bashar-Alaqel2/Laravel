@@ -24,5 +24,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN composer install --optimize-autoloader --no-dev
 
 # تشغيل سيرفر Laravel الداخلي السريع، وربطه بالمنفذ الديناميكي الخاص بـ Railway
+# تحديد عدد العمال (Workers) لتمكين السيرفر من معالجة عدة طلبات في وقت واحد بدون أن يتعطل (CORS fix)
+ENV PHP_CLI_SERVER_WORKERS=10
+
 # تشغيل سيرفر Laravel الداخلي السريع، وربطه بالمنفذ الديناميكي الخاص بـ Railway
 CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
