@@ -24,4 +24,5 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN composer install --optimize-autoloader --no-dev
 
 # تشغيل سيرفر Laravel الداخلي السريع، وربطه بالمنفذ الديناميكي الخاص بـ Railway
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+# نقوم أيضاً بتشغيل أمر ترحيل قواعد البيانات (migrate) لإنشاء الجداول تلقائياً في Supabase
+CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
