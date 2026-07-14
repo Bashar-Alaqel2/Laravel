@@ -1,11 +1,19 @@
-# استخدام نسخة CLI الخفيفة والسريعة جداً (بدون خادم Apache لتجنب أي أعطال أو أخطاء MPM)
-FROM php:8.4-cli
+# استخدام نسخة Apache الرسمية والمستقرة لـ Laravel
+FROM php:8.2-apache
 
 # تثبيت الحزم الأساسية
-RUN apt-get update && apt-get install -y libpq-dev zip unzip
+RUN apt-get update && apt-get install -y libpq-dev zip unzip libpng-dev
 
-# تفعيل إضافات قاعدة البيانات، والأهم: تفعيل إضافة pcntl لتمكين العمال (Workers)
-RUN docker-php-ext-install pdo pdo_pgsql pcntl
+# تفعيل إضافات قاعدة البيانات
+RUN docker-php-ext-install pdo pdo_pgsql gd
+
+# تفعيل ميزة Rewrite في خادم Apache (مهم جداً لـ Laravel)
+RUN a2enmod rewrite
+
+# تغيير مجلد Apache الافتراضي ليكون مجلد public الخاص بـ Laravel
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
 # تثبيت Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -16,17 +24,18 @@ COPY . /var/www/html
 # تحديد مسار العمل
 WORKDIR /var/www/html
 
-# إعطاء صلاحيات الكتابة كإجراء احتياطي
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
 # تحميل حزم Laravel
 RUN composer install --optimize-autoloader --no-dev
 
-# تحديد عدد العمال (Workers) لتمكين السيرفر من معالجة عدة طلبات في وقت واحد بدون أن يختنق (CORS fix)
-ENV PHP_CLI_SERVER_WORKERS=10
+# إعطاء صلاحيات الكتابة كإجراء احتياطي لملفات التخزين المؤقت
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# تحديد المنفذ الافتراضي لـ Railway
-EXPOSE 8080
+# تحديد المنفذ الذي سيعمل عليه Apache (يتماشى مع Railway)
+EXPOSE 80
 
-# تشغيل سيرفر Laravel الداخلي السريع
-CMD php artisan serve --host=0.0.0.0 --port=8080
+# تغيير منفذ Apache إلى 80
+RUN sed -i 's/Listen 80/Listen ${PORT:-80}/g' /etc/apache2/ports.conf
+RUN sed -i 's/:80/:${PORT:-80}/g' /etc/apache2/sites-available/000-default.conf
+
+# تشغيل خادم Apache في الواجهة
+CMD ["apache2-foreground"]
