@@ -1,8 +1,3 @@
-# استخدام نسخة CLI الخفيفة جداً (بدون خادم Apache لتجنب أي أعطال أو أخطاء MPM)
-FROM php:8.4-cli
-
-# تثبيت الحزم الأساسية وإضافات قاعدة البيانات PostgreSQL
-RUN apt-get update && apt-get install -y \
 # استخدام نسخة PHP مع خادم Apache
 FROM php:8.4-apache
 
