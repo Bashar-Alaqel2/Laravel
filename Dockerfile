@@ -1,5 +1,5 @@
 # استخدام نسخة PHP مع خادم Apache
-FROM php:8.2-apache
+FROM php:8.4-apache
 
 # تثبيت الحزم الأساسية للنظام التي يحتاجها Laravel
 RUN apt-get update && apt-get install -y \
