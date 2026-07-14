@@ -31,11 +31,11 @@ RUN composer install --optimize-autoloader --no-dev
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # تحديد المنفذ الذي سيعمل عليه Apache (يتماشى مع Railway)
-EXPOSE 80
+EXPOSE 8080
 
-# تغيير منفذ Apache إلى 80
-RUN sed -i 's/Listen 80/Listen ${PORT:-80}/g' /etc/apache2/ports.conf
-RUN sed -i 's/:80/:${PORT:-80}/g' /etc/apache2/sites-available/000-default.conf
+# تغيير منفذ Apache إلى 8080
+RUN sed -i 's/Listen 80/Listen 8080/g' /etc/apache2/ports.conf
+RUN sed -i 's/:80/:8080/g' /etc/apache2/sites-available/000-default.conf
 
 # تشغيل خادم Apache في الواجهة
 CMD ["apache2-foreground"]
