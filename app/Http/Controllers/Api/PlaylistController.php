@@ -40,22 +40,36 @@ class PlaylistController extends Controller
             ->whereHas('schedules', function ($q) use ($nowDate, $nowTime) {
                 $q->where('is_active', 1)
                   ->where('start_date', '<=', $nowDate)
-                  ->where('end_date', '>=', $nowDate);
+                  ->where('end_date', '>=', $nowDate)
+                  ->where(function ($subQ) use ($nowTime) {
+                      $subQ->whereNull('end_time')
+                           ->orWhere('end_time', '>=', $nowTime);
+                  });
             })
-            ->with(['schedules' => function($q) use ($nowDate, $nowTime) {
+            ->with(['schedules' => function($q) use ($nowDate) {
                 // جلب الجدولة المطابقة لمعرفة خصائصها
                 $q->where('start_date', '<=', $nowDate)
                   ->where('end_date', '>=', $nowDate);
             }])
             ->get();
 
-        $playlist = $ads->map(function ($ad) {
+        $playlist = $ads->map(function ($ad) use ($nowTime) {
             $filePath = $ad->file_path;
             $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
             $type = in_array($extension, ['mp4', 'avi', 'mov']) ? 'video' : 'image';
 
             // إذا كان هناك جدولة محددة بوقت، نأخذ أول جدولة مطابقة
             $schedule = $ad->schedules->first();
+            
+            $startsAt = $schedule ? $schedule->start_time : null;
+            $expiresAt = $schedule ? $schedule->end_time : null;
+
+            // 🚀 حل مشكلة تأخر الاعتماد والدفع:
+            // إذا كان وقت بداية الإعلان قد مر بالفعل (بسبب تأخر الدفع أو المراجعة)،
+            // فإننا نرسل starts_at كـ null لكي يعرضه التطبيق فوراً بدون انتظار وقت البداية الذي مضى
+            if ($startsAt && $nowTime >= $startsAt) {
+                $startsAt = null;
+            }
 
             return [
                 'id'               => $ad->ad_id,
@@ -65,8 +79,8 @@ class PlaylistController extends Controller
                 'duration'         => $ad->duration * 1000, // تحويل للـ milliseconds كما يتوقع التطبيق
                 'interval_minutes' => $schedule ? $schedule->interval_minutes : 1, // كل كم دقيقة يعرض
                 'allocated_seconds'=> $schedule ? $schedule->allocated_seconds : $ad->duration,
-                'starts_at'        => $schedule ? $schedule->start_time : null,
-                'expires_at'       => $schedule ? $schedule->end_time : null,
+                'starts_at'        => $startsAt,
+                'expires_at'       => $expiresAt,
             ];
         });
 
