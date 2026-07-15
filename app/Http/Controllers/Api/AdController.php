@@ -512,9 +512,13 @@ class AdController extends Controller
             return response()->json(['error' => 'الإعلان غير موجود.'], 404);
         }
 
-        // من يحق له الحذف؟ المعلن صاحب الإعلان أو الإدارة
-        if ($ad->advertiser_id !== $request->user()->user_id && !$request->user()->can('manage_all')) {
+        $isManager = $request->user()->can('manage_all');
+        if ($ad->advertiser_id !== $request->user()->user_id && !$isManager) {
             return response()->json(['error' => 'لا تملك صلاحية حذف هذا الإعلان.'], 403);
+        }
+
+        if (!$isManager && $ad->payment_status === 'paid') {
+            return response()->json(['error' => 'عذراً، لا يمكنك حذف هذا الإعلان لأنه تم الدفع مقابله وتم اعتماده. يرجى التواصل مع الإدارة لطلب الحذف أو التعديل.'], 403);
         }
 
         // الحذف المنطقي (Soft Delete)
