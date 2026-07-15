@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     && docker-php-ext-install pdo pdo_pgsql pgsql gd zip
 
-# Enable Apache mod_rewrite for Laravel routing and fix MPM bug
-RUN a2enmod rewrite && a2dismod mpm_event mpm_worker || true
+# Enable Apache mod_rewrite for Laravel routing and FORCE remove conflicting MPMs
+RUN a2enmod rewrite && rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.*
 
 # Change Apache DocumentRoot to point to Laravel's public directory
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
