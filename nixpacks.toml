@@ -1,5 +1,3 @@
 [variables]
+PHP_CLI_SERVER_WORKERS = "10"
 NIXPACKS_NO_MIGRATE = "1"
-
-[phases.build]
-cmds = ["composer install --no-dev --optimize-autoloader"]
