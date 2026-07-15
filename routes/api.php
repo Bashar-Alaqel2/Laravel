@@ -4,6 +4,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 
 use App\Http\Controllers\Api\ScreenController;
+use Illuminate\Support\Facades\Broadcast;
+
+// تسجيل مسارات البث الخاصة بـ Pusher / Echo مع استخدام توكن Sanctum
+Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 // مسارات مفتوحة (لا تحتاج تسجيل دخول)
 Route::post('/register', [AuthController::class, 'register']);
