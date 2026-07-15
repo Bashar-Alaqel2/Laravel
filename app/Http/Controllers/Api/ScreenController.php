@@ -249,6 +249,42 @@ class ScreenController extends Controller
     // -----------------------------------------------------------------
 
     // ==========================================
+    // تحديث حالة الشاشة لفريق الصيانة
+    // ==========================================
+    public function updateStatus(Request $request, $id)
+    {
+        $user = $request->user();
+        $screen = Screen::find($id);
+        
+        if (!$screen) {
+            return response()->json(['message' => 'الشاشة غير موجودة'], 404);
+        }
+
+        if ($user) {
+            // Only Admins or Maintenance can update screen status
+            if (!$user->can('manage_all') && !$user->can('manage_screens') && $user->role->role_name !== 'Maintenance') {
+                return response()->json(['message' => 'غير مصرح لك بتعديل حالة الشاشة'], 403);
+            }
+        }
+
+        $request->validate([
+            'status' => 'required|in:online,offline,maintenance,active'
+        ]);
+
+        $screen->update([
+            'status' => $request->status
+        ]);
+
+        event(new \App\Events\ScreenUpdated($screen));
+
+        return response()->json([
+            'message' => 'تم تحديث حالة الشاشة بنجاح',
+            'screen'  => $screen
+        ], 200);
+    }
+
+
+    // ==========================================
     // 6. نبض الشاشة (Ping) لتحديث حالتها إلى "متصلة"
     // (يتم إرسال الـ mac_address للتعرف على الشاشة)
     // ==========================================

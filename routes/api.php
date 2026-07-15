@@ -68,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // === مسارات الشاشات (للوحة التحكم ولتطبيق Flutter) ===
     Route::post('/screens/command', [App\Http\Controllers\Api\ScreenController::class, 'sendCommand']);
     Route::get('/screens/{id}/availability', [App\Http\Controllers\Api\ScreenController::class, 'getAvailability']);
+    Route::put('/screens/{id}/status', [App\Http\Controllers\Api\ScreenController::class, 'updateStatus']);
     Route::apiResource('screens', App\Http\Controllers\Api\ScreenController::class); // تنشئ مسارات: index, store, show, update, destroy
     // === مسارات الإعلانات ===
     Route::get('/ads', [App\Http\Controllers\Api\AdController::class, 'index']);

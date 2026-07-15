@@ -68,4 +68,38 @@ class SupportTicketController extends Controller
             
         return response()->json($ticket);
     }
+
+    public function update(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        $ticket = SupportTicket::findOrFail($id);
+        
+        if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+            // Screen Owners should not update the admin_reply or status directly except maybe to close it.
+            // But we can let them close it.
+            if ($ticket->user_id !== $user->user_id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+        }
+        
+        $request->validate([
+            'status' => 'nullable|in:open,in_progress,resolved,closed',
+            'admin_reply' => 'nullable|string',
+            'priority' => 'nullable|in:low,medium,high,urgent'
+        ]);
+
+        if ($request->has('status')) $ticket->status = $request->status;
+        if ($request->has('admin_reply')) $ticket->admin_reply = $request->admin_reply;
+        if ($request->has('priority')) $ticket->priority = $request->priority;
+        
+        $ticket->save();
+
+        event(new \App\Events\TicketUpdated($ticket, $ticket->user_id));
+
+        return response()->json([
+            'message' => 'تم تحديث التذكرة بنجاح',
+            'ticket' => $ticket
+        ], 200);
+    }
 }
