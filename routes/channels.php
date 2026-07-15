@@ -19,7 +19,7 @@ Broadcast::channel('owner.earnings.{id}', function ($user, $id) {
 });
 
 Broadcast::channel('admin.screens', function ($user) {
-    return $user->can('manage_all');
+    return $user->can('manage_all') || $user->can('manage_screens') || $user->role->role_name === 'Maintenance';
 });
 
 Broadcast::channel('admin.tickets', function ($user) {
