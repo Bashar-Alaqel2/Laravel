@@ -155,6 +155,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/owner-analytics', [App\Http\Controllers\Api\ReportController::class, 'ownerAnalytics']);
     Route::get('/reports/screen', [App\Http\Controllers\Api\ReportController::class, 'screenReport']);
     Route::get('/reports/maintenance', [App\Http\Controllers\Api\ReportController::class, 'maintenanceReport']);
+    Route::get('/reports/comprehensive-financial', [App\Http\Controllers\Api\ReportController::class, 'comprehensiveFinancial']);
+    Route::get('/reports/ad-performance', [App\Http\Controllers\Api\ReportController::class, 'adPerformance']);
     
     // === مسارات الإعدادات ===
     Route::get('/settings', [App\Http\Controllers\Api\SystemSettingController::class, 'index']);

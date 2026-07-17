@@ -8,6 +8,9 @@ use App\Models\Advertisement;
 use App\Models\FinancialLedger;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Models\DurationDiscount;
+use Illuminate\Support\Facades\Cache;
+use App\Models\SystemSetting;
 
 class AdController extends Controller
 {
@@ -582,13 +585,40 @@ class AdController extends Controller
             ];
         }
 
+        $subtotal = $totalCost;
+        
+        // حساب خصم المدة
+        $discount = DurationDiscount::where('min_days', '<=', $days)
+            ->orderBy('min_days', 'desc')
+            ->first();
+            
+        $discountPercentage = 0;
+        $discountAmount = 0;
+        if ($discount) {
+            $discountPercentage = $discount->discount_percentage;
+            $discountAmount = $subtotal * ($discountPercentage / 100);
+            $totalCost = $subtotal - $discountAmount;
+        }
+
+        // جلب إعدادات المنصة لعمولة المنصة
+        $settings = Cache::rememberForever('system_settings_cache', function () {
+            return SystemSetting::all()->pluck('setting_value', 'setting_key')->toArray();
+        });
+        $platformFeePercentage = isset($settings['platform_fee_percentage']) ? (float)$settings['platform_fee_percentage'] : 20.0;
+        $platformFeeAmount = $totalCost * ($platformFeePercentage / 100);
+
         return response()->json([
             'success' => true,
             'data' => [
-                'days'               => $days,
-                'package_multiplier' => $packageMultiplier,
-                'total_cost'         => round($totalCost, 2),
-                'screens'            => $screenDetails,
+                'days'                    => $days,
+                'package_multiplier'      => $packageMultiplier,
+                'subtotal'                => round($subtotal, 2),
+                'discount_percentage'     => $discountPercentage,
+                'discount_amount'         => round($discountAmount, 2),
+                'total_cost'              => round($totalCost, 2),
+                'platform_fee_percentage' => $platformFeePercentage,
+                'platform_fee_amount'     => round($platformFeeAmount, 2),
+                'screens'                 => $screenDetails,
             ]
         ]);
     }

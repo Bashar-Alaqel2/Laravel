@@ -184,5 +184,169 @@ class ReportController extends Controller
             ]
         ]);
     }
-}
 
+    public function comprehensiveFinancial(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !in_array($user->role_id, [1, 2, 7])) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح'], 403);
+        }
+
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
+
+        // Total Revenue (all money in)
+        $totalRevenue = FinancialLedger::where('transaction_type', 'payment_in')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        // Platform Commission
+        $platformCommission = FinancialLedger::where('transaction_type', 'platform_fee')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        // Net to Owners (payout_pending + payout_completed)
+        $ownersNetProfit = FinancialLedger::whereIn('transaction_type', ['payout_pending', 'payout_completed'])
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('status', '!=', 'rejected')
+            ->sum('amount');
+
+        // Status Counts from Ads (to reflect operations)
+        $adsCount = [
+            'pending' => Advertisement::where('status', 'Pending')
+                ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])->count(),
+            'completed' => Advertisement::whereIn('status', ['Completed', 'Active'])
+                ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])->count(),
+            'rejected' => Advertisement::where('status', 'Rejected')
+                ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])->count(),
+        ];
+
+        // Monthly Revenue Chart Data
+        $monthlyRevenueRaw = FinancialLedger::where('transaction_type', 'payment_in')
+            ->where('status', 'completed')
+            ->whereYear('created_at', now()->year)
+            ->select(DB::raw('MONTH(created_at) as month'), DB::raw('SUM(amount) as total'))
+            ->groupBy('month')
+            ->pluck('total', 'month')->toArray();
+        
+        $monthlyRevenue = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $monthlyRevenue[] = [
+                'name' => now()->month($i)->translatedFormat('M'),
+                'revenue' => $monthlyRevenueRaw[$i] ?? 0
+            ];
+        }
+
+        // Top 10 Advertisers by Spend
+        $topAdvertisers = FinancialLedger::where('transaction_type', 'payment_in')
+            ->where('status', 'completed')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->select('user_id', DB::raw('SUM(amount) as total_spend'))
+            ->groupBy('user_id')
+            ->orderBy('total_spend', 'desc')
+            ->take(10)
+            ->with('user')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'advertiser_name' => $item->user ? $item->user->full_name : 'غير محدد',
+                    'total_spend' => $item->total_spend
+                ];
+            });
+
+        // Top 10 Screens by Revenue
+        $topScreens = FinancialLedger::whereIn('transaction_type', ['payout_pending', 'payout_completed'])
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereNotNull('screen_id')
+            ->select('screen_id', DB::raw('SUM(amount) as total_revenue'))
+            ->groupBy('screen_id')
+            ->orderBy('total_revenue', 'desc')
+            ->take(10)
+            ->with('screen')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'screen_name' => $item->screen ? $item->screen->screen_name : 'غير محدد',
+                    'total_revenue' => $item->total_revenue
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'summary' => [
+                'total_revenue' => round($totalRevenue, 2),
+                'platform_commission' => round($platformCommission, 2),
+                'owners_net_profit' => round($ownersNetProfit, 2),
+                'operations_count' => $adsCount,
+            ],
+            'monthly_revenue' => $monthlyRevenue,
+            'top_advertisers' => $topAdvertisers,
+            'top_screens' => $topScreens,
+        ]);
+    }
+
+    public function adPerformance(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !in_array($user->role_id, [1, 2, 7])) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح'], 403);
+        }
+
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
+
+        $adsQuery = Advertisement::whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+
+        // Ads by Status
+        $adsByStatus = [
+            'active' => (clone $adsQuery)->where('status', 'Active')->count(),
+            'pending' => (clone $adsQuery)->where('status', 'Pending')->count(),
+            'rejected' => (clone $adsQuery)->where('status', 'Rejected')->count(),
+            'completed' => (clone $adsQuery)->where('status', 'Completed')->count(),
+        ];
+
+        // Average Campaign Duration
+        $avgDurationRaw = (clone $adsQuery)->select(DB::raw('AVG(DATEDIFF(end_date, start_date)) as avg_days'))->first();
+        $avgCampaignDuration = $avgDurationRaw ? round($avgDurationRaw->avg_days) : 0;
+
+        // Most Expensive Ads
+        $topAds = (clone $adsQuery)->orderBy('total_cost', 'desc')
+            ->take(5)
+            ->get(['ad_id', 'title', 'total_cost', 'status'])
+            ->map(function ($ad) {
+                return [
+                    'id' => $ad->ad_id,
+                    'title' => $ad->title,
+                    'cost' => $ad->total_cost,
+                    'status' => $ad->status,
+                ];
+            });
+
+        // Ads Distribution by Governorate
+        $adsByGov = DB::table('advertisement_screen')
+            ->join('advertisements', 'advertisement_screen.ad_id', '=', 'advertisements.ad_id')
+            ->join('screens', 'advertisement_screen.screen_id', '=', 'screens.screen_id')
+            ->join('streets', 'screens.street_id', '=', 'streets.street_id')
+            ->join('regions', 'streets.region_id', '=', 'regions.region_id')
+            ->join('governorates', 'regions.governorate_id', '=', 'governorates.governorate_id')
+            ->whereBetween('advertisements.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->select('governorates.governorate_name as name', DB::raw('COUNT(DISTINCT advertisements.ad_id) as value'))
+            ->groupBy('governorates.governorate_id', 'governorates.governorate_name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'summary' => [
+                'total_ads' => (clone $adsQuery)->count(),
+                'avg_duration_days' => $avgCampaignDuration,
+                'approval_rate' => $adsByStatus['active'] + $adsByStatus['completed'],
+                'rejection_rate' => $adsByStatus['rejected'],
+            ],
+            'ads_by_status' => $adsByStatus,
+            'most_expensive_ads' => $topAds,
+            'distribution_by_governorate' => $adsByGov,
+        ]);
+    }
+}
