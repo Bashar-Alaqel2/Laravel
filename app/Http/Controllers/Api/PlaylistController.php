@@ -26,7 +26,7 @@ class PlaylistController extends Controller
         $screen = Screen::where('mac_address', $macAddress)->first();
 
         if (!$screen) {
-            return response()->json(['message' => 'Screen not found or not linked'], 404);
+            return response()->json(['message' => 'الشاشة غير موجودة أو غير مربوطة'], 404);
         }
 
         // كاش ذكي: يتم تحديث القائمة كل 60 ثانية لكل شاشة

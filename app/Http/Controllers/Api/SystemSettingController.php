@@ -32,7 +32,7 @@ class SystemSettingController extends Controller
     {
         // Only Admin or SuperAdmin can update settings
         if (!$request->user() || !$request->user()->can('manage_all')) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول'], 403);
         }
 
         $settingsToUpdate = $request->except(['_token', '_method']);
@@ -56,7 +56,7 @@ class SystemSettingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Settings updated successfully',
+            'message' => 'تم تحديث الإعدادات بنجاح',
             'data' => $freshSettings
         ]);
     }
@@ -68,7 +68,7 @@ class SystemSettingController extends Controller
     {
         // Only Admin or SuperAdmin
         if (!$request->user() || !$request->user()->can('manage_all')) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول'], 403);
         }
 
         try {

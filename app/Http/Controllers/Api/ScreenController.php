@@ -397,7 +397,7 @@ class ScreenController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Playback log recorded successfully'
+            'message' => 'تم تسجيل السجل بنجاح'
         ], 200);
     }
 
@@ -617,7 +617,7 @@ class ScreenController extends Controller
         $screen = Screen::where('mac_address', $request->mac_address)->first();
 
         if (!$screen) {
-            return response()->json(['success' => false, 'message' => 'Screen not found'], 404);
+            return response()->json(['success' => false, 'message' => 'الشاشة غير موجودة'], 404);
         }
 
         $targetRoleIds = [\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN, \App\Models\Role::SECRETARY, \App\Models\Role::MAINTENANCE];
@@ -683,7 +683,7 @@ class ScreenController extends Controller
         $screen = Screen::where('mac_address', $request->mac_address)->first();
 
         if (!$screen) {
-            return response()->json(['success' => false, 'message' => 'Screen not found'], 404);
+            return response()->json(['success' => false, 'message' => 'الشاشة غير موجودة'], 404);
         }
 
         // مسار التخزين
@@ -697,7 +697,7 @@ class ScreenController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Screenshot uploaded successfully',
+            'message' => 'تم رفع لقطة الشاشة بنجاح',
             'url'     => $url,
             'time'    => $screen->last_screenshot_at
         ], 200);
