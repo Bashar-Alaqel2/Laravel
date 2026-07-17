@@ -149,7 +149,7 @@ class ReportController extends Controller
         $startDate = $request->start_date;
         $endDate = $request->end_date;
 
-        $screen = Screen::with('street.region.governorate')->findOrFail($screenId);
+        $screen = Screen::with(['street.region.governorate', 'owner'])->findOrFail($screenId);
 
         // Fetch total ads count just for activity metric, no financial data
         $adsCount = Advertisement::whereHas('screens', function ($q) use ($screenId) {
@@ -194,40 +194,66 @@ class ReportController extends Controller
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
+        $targetUserId = $request->input('user_id', 'all');
 
-        // Total Revenue (all money in)
-        $totalRevenue = FinancialLedger::where('transaction_type', 'payment_in')
+        $queryRevenue = FinancialLedger::where('transaction_type', 'payment_in')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->where('status', 'completed')
-            ->sum('amount');
+            ->where('status', 'completed');
+        if ($targetUserId !== 'all' && $targetUserId) {
+            $queryRevenue->where('user_id', $targetUserId);
+        }
+        $totalRevenue = $queryRevenue->sum('amount');
 
-        // Platform Commission
-        $platformCommission = FinancialLedger::where('transaction_type', 'platform_fee')
+        $queryCommission = FinancialLedger::where('transaction_type', 'platform_fee')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->where('status', 'completed')
-            ->sum('amount');
+            ->where('status', 'completed');
+        if ($targetUserId !== 'all' && $targetUserId) {
+            $queryCommission->where('user_id', $targetUserId);
+        }
+        $platformCommission = $queryCommission->sum('amount');
 
-        // Net to Owners (payout_pending + payout_completed)
-        $ownersNetProfit = FinancialLedger::whereIn('transaction_type', ['payout_pending', 'payout_completed'])
+        $queryOwners = FinancialLedger::whereIn('transaction_type', ['payout_pending', 'payout_completed'])
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->where('status', '!=', 'rejected')
-            ->sum('amount');
+            ->where('status', '!=', 'rejected');
+        if ($targetUserId !== 'all' && $targetUserId) {
+            $queryOwners->where('user_id', $targetUserId);
+        }
+        $ownersNetProfit = $queryOwners->sum('amount');
 
         // Status Counts from Ads (to reflect operations)
+        $queryPendingAds = Advertisement::where('status', 'Pending')
+            ->whereBetween('uploaded_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        if ($targetUserId !== 'all' && $targetUserId) {
+            $queryPendingAds->where('user_id', $targetUserId);
+        }
+        
+        $queryCompletedAds = Advertisement::whereIn('status', ['Completed', 'Active'])
+            ->whereBetween('uploaded_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        if ($targetUserId !== 'all' && $targetUserId) {
+            $queryCompletedAds->where('user_id', $targetUserId);
+        }
+        
+        $queryRejectedAds = Advertisement::where('status', 'Rejected')
+            ->whereBetween('uploaded_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        if ($targetUserId !== 'all' && $targetUserId) {
+            $queryRejectedAds->where('user_id', $targetUserId);
+        }
+
         $adsCount = [
-            'pending' => Advertisement::where('status', 'Pending')
-                ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])->count(),
-            'completed' => Advertisement::whereIn('status', ['Completed', 'Active'])
-                ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])->count(),
-            'rejected' => Advertisement::where('status', 'Rejected')
-                ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])->count(),
+            'pending' => $queryPendingAds->count(),
+            'completed' => $queryCompletedAds->count(),
+            'rejected' => $queryRejectedAds->count(),
         ];
 
         // Monthly Revenue Chart Data
-        $monthlyRevenueRaw = FinancialLedger::where('transaction_type', 'payment_in')
+        $queryMonthly = FinancialLedger::where('transaction_type', 'payment_in')
             ->where('status', 'completed')
-            ->whereYear('created_at', now()->year)
-            ->select(DB::raw('MONTH(created_at) as month'), DB::raw('SUM(amount) as total'))
+            ->whereYear('created_at', now()->year);
+        if ($targetUserId !== 'all' && $targetUserId) {
+            $queryMonthly->where('user_id', $targetUserId);
+        }
+        $monthlyRevenueRaw = $queryMonthly
+            ->select(DB::raw('EXTRACT(MONTH FROM created_at) as month'), DB::raw('SUM(amount) as total'))
             ->groupBy('month')
             ->pluck('total', 'month')->toArray();
         
@@ -240,9 +266,14 @@ class ReportController extends Controller
         }
 
         // Top 10 Advertisers by Spend
-        $topAdvertisers = FinancialLedger::where('transaction_type', 'payment_in')
+        $queryTop = FinancialLedger::where('transaction_type', 'payment_in')
             ->where('status', 'completed')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        // If user is specified, top advertisers is just that user, but we'll still query it
+        if ($targetUserId !== 'all' && $targetUserId) {
+            $queryTop->where('user_id', $targetUserId);
+        }
+        $topAdvertisers = $queryTop
             ->select('user_id', DB::raw('SUM(amount) as total_spend'))
             ->groupBy('user_id')
             ->orderBy('total_spend', 'desc')
@@ -297,7 +328,7 @@ class ReportController extends Controller
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
 
-        $adsQuery = Advertisement::whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        $adsQuery = Advertisement::whereBetween('uploaded_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
 
         // Ads by Status
         $adsByStatus = [
@@ -308,7 +339,7 @@ class ReportController extends Controller
         ];
 
         // Average Campaign Duration
-        $avgDurationRaw = (clone $adsQuery)->select(DB::raw('AVG(DATEDIFF(end_date, start_date)) as avg_days'))->first();
+        $avgDurationRaw = (clone $adsQuery)->select(DB::raw('AVG(EXTRACT(EPOCH FROM (end_date::timestamp - start_date::timestamp)) / 86400) as avg_days'))->first();
         $avgCampaignDuration = $avgDurationRaw ? round($avgDurationRaw->avg_days) : 0;
 
         // Most Expensive Ads

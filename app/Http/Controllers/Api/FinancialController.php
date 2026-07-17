@@ -129,7 +129,8 @@ class FinancialController extends Controller
         $type = $request->has('type') ? $request->type : 'all';
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
-        $cacheKey = "financial_ledger_{$userId}_{$role}_{$type}_{$startDate}_{$endDate}";
+        $targetUserId = $request->input('user_id', 'all');
+        $cacheKey = "financial_ledger_{$userId}_{$role}_{$type}_{$startDate}_{$endDate}_{$targetUserId}";
 
         $data = Cache::remember($cacheKey, 60, function () use ($user, $request, $startDate, $endDate) {
             $baseQuery = FinancialLedger::query();
