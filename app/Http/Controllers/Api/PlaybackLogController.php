@@ -106,11 +106,11 @@ class PlaybackLogController extends Controller
 
         // Handle permissions
         $user = $request->user();
-        if ($user && $user->role && $user->role->role_name === 'ScreenOwner') {
+        if ($user && $user->hasRole(\App\Models\Role::SCREEN_OWNER)) {
             $query->whereHas('screen', function($q) use ($user) {
                 $q->where('owner_id', $user->user_id);
             });
-        } elseif ($user && $user->role && $user->role->role_name === 'Advertiser') {
+        } elseif ($user && $user->hasRole(\App\Models\Role::ADVERTISER)) {
             $query->whereHas('advertisement', function($q) use ($user) {
                 $q->where('advertiser_id', $user->user_id);
             });

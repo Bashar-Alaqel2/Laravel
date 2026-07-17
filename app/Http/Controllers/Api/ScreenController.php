@@ -17,7 +17,7 @@ class ScreenController extends Controller
         $query = Screen::with(['owner', 'type', 'street.region.governorate']);
 
         if ($user) {
-            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+            if ($user->role_id === 8 || ($user->hasRole(\App\Models\Role::SCREEN_OWNER))) {
                 $query->where('owner_id', $user->user_id);
             }
         }
@@ -112,7 +112,7 @@ class ScreenController extends Controller
 
         // إرسال إشعار للمديرين
         $admins = \App\Models\User::whereHas('role', function($q) {
-            $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
+            $q->whereIn('role_id', [\App\Models\Role::ADMIN, \App\Models\Role::SECRETARY, \App\Models\Role::SUPER_ADMIN]);
         })->get();
         foreach ($admins as $admin) {
             \App\Models\Notification::create([
@@ -145,7 +145,7 @@ class ScreenController extends Controller
         }
 
         if ($user) {
-            if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+            if ($user->role_id === 8 || ($user->hasRole(\App\Models\Role::SCREEN_OWNER))) {
                 if ($screen->owner_id !== $user->user_id) {
                     return response()->json(['message' => 'غير مصرح لك بالوصول لهذه الشاشة'], 403);
                 }
@@ -194,7 +194,17 @@ class ScreenController extends Controller
         // If the owner has changed, we should clear the cache for both the old and new owner's dashboard/financials.
         if ($oldOwnerId !== $screen->owner_id) {
             // Since we don't have the exact role ID here easily without querying, we can just clear common patterns.
-            \Illuminate\Support\Facades\Cache::flush(); // Flush all cache just to be perfectly safe as owner changes are rare.
+            // مسح كاش الداشبورد للمالك القديم والجديد
+            \Illuminate\Support\Facades\Cache::forget('admin_dashboard_overview');
+            \Illuminate\Support\Facades\Cache::forget('secretary_dashboard_overview');
+            if ($oldOwnerId) {
+                \Illuminate\Support\Facades\Cache::forget("owner_dashboard_{$oldOwnerId}");
+                \Illuminate\Support\Facades\Cache::forget("owner_earnings_{$oldOwnerId}");
+            }
+            if ($screen->owner_id) {
+                \Illuminate\Support\Facades\Cache::forget("owner_dashboard_{$screen->owner_id}");
+                \Illuminate\Support\Facades\Cache::forget("owner_earnings_{$screen->owner_id}");
+            }
             
             // Re-assign previous financial records to new owner?
             // Usually we do NOT move old financial records because they belong to the person who owned it at that time.
@@ -262,7 +272,7 @@ class ScreenController extends Controller
 
         if ($user) {
             // Only Admins or Maintenance can update screen status
-            if (!$user->can('manage_all') && !$user->can('manage_screens') && $user->role->role_name !== 'Maintenance') {
+            if (!$user->can('manage_all') && !$user->can('manage_screens') && !$user->hasRole(\App\Models\Role::MAINTENANCE)) {
                 return response()->json(['message' => 'غير مصرح لك بتعديل حالة الشاشة'], 403);
             }
         }
@@ -324,20 +334,22 @@ class ScreenController extends Controller
                     // إرسال إشعار للمعلن
                     \App\Models\Notification::create([
                         'user_id' => $ad->advertiser_id,
-                        'title' => 'تم تعويض إعلانك تلقائياً 🎁',
-                        'message' => "تم تمديد فترة إعلانك ({$ad->title}) بمقدار {$offlineDurationMinutes} دقيقة كتعويض عن فترة انقطاع مؤقتة في شاشة: {$screen->screen_name}."
+                        'title' => json_encode(['key' => 'notif_title_ad_compensated']),
+                        'message' => json_encode(['key' => 'notif_msg_ad_compensated', 'args' => ['title' => $ad->title, 'minutes' => $offlineDurationMinutes, 'screen' => $screen->screen_name]]),
+                        'is_read' => false,
                     ]);
 
                     // إرسال إشعار للإدارة
                     $admins = \App\Models\User::whereHas('role', function($q) {
-                        $q->where('role_name', 'Admin');
+                        $q->whereIn('role_id', [\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN]);
                     })->get();
 
                     foreach ($admins as $admin) {
                         \App\Models\Notification::create([
                             'user_id' => $admin->user_id,
-                            'title' => 'تعويض إعلان تلقائي 🔄',
-                            'message' => "تم تفعيل وإضافة {$offlineDurationMinutes} دقيقة تعويضاً للإعلان: ({$ad->title}) للمعلن: ({$ad->advertiser->name}) بسبب عودة شاشة ({$screen->screen_name}) للعمل."
+                            'title' => json_encode(['key' => 'notif_title_ad_compensated_admin']),
+                            'message' => json_encode(['key' => 'notif_msg_ad_compensated_admin', 'args' => ['title' => $ad->title, 'minutes' => $offlineDurationMinutes, 'screen' => $screen->screen_name]]),
+                            'is_read' => false,
                         ]);
                     }
                 }
@@ -608,9 +620,9 @@ class ScreenController extends Controller
             return response()->json(['success' => false, 'message' => 'Screen not found'], 404);
         }
 
-        $targetRoles = ['Admin', 'SuperAdmin', 'Secretary', 'Maintenance'];
-        $managers = \App\Models\User::whereHas('role', function($q) use ($targetRoles) {
-            $q->whereIn('role_name', $targetRoles);
+        $targetRoleIds = [\App\Models\Role::ADMIN, \App\Models\Role::SUPER_ADMIN, \App\Models\Role::SECRETARY, \App\Models\Role::MAINTENANCE];
+        $managers = \App\Models\User::whereHas('role', function($q) use ($targetRoleIds) {
+            $q->whereIn('role_id', $targetRoleIds);
         })->get();
 
         $owner = \App\Models\User::find($screen->owner_id);
@@ -676,7 +688,7 @@ class ScreenController extends Controller
 
         // مسار التخزين
         $path = $request->file('image')->store('screenshots', 'public');
-        $url = \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+        $url = url('/storage/' . $path);
 
         // تحديث قاعدة البيانات
         $screen->last_screenshot_url = $url;

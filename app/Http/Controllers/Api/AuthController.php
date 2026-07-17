@@ -46,9 +46,9 @@ class AuthController extends Controller
         }
 
         // 3. البحث عن رقم صلاحية "معلن" لإعطائها للمستخدم الجديد تلقائياً
-        $advertiserRole = Role::where('role_name', 'Advertiser')->first();
+        $advertiserRole = Role::find(Role::ADVERTISER);
         if (!$advertiserRole) {
-            $advertiserRole = Role::create(['role_name' => 'Advertiser']);
+            $advertiserRole = Role::create(['role_id' => Role::ADVERTISER, 'role_name' => 'Advertiser']);
         }
 
         // 4. إدخال البيانات في قاعدة البيانات
@@ -66,7 +66,7 @@ class AuthController extends Controller
         \Illuminate\Support\Facades\Cache::forget('lookup_users_role_advertiser');
 
         $admins = User::whereHas('role', function($q) {
-            $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
+            $q->whereIn('role_id', [\App\Models\Role::ADMIN, \App\Models\Role::SECRETARY, \App\Models\Role::SUPER_ADMIN]);
         })->get();
         foreach ($admins as $admin) {
             \App\Models\Notification::create([
@@ -201,7 +201,7 @@ class AuthController extends Controller
         ]);
 
         $role = Role::find($request->role_id);
-        if ($role && $role->role_name === 'ScreenOwner') {
+        if ($role && $role->role_id === \App\Models\Role::SCREEN_OWNER) {
             if ($request->bank_name && $request->account_number) {
                 BankAccount::create([
                     'user_id' => $user->user_id,
@@ -341,7 +341,7 @@ class AuthController extends Controller
         if ($role) {
             \Illuminate\Support\Facades\Cache::forget('lookup_users_role_' . strtolower($role->role_name));
         }
-        if ($role && $role->role_name === 'ScreenOwner') {
+        if ($role && $role->role_id === \App\Models\Role::SCREEN_OWNER) {
             if ($request->bank_name && $request->account_number) {
                 BankAccount::updateOrCreate(
                     ['user_id' => $user->user_id],
@@ -374,7 +374,7 @@ class AuthController extends Controller
         $currentToken = $request->user()->currentAccessToken();
         $user = $request->user();
 
-        if ($user->role?->role_name === 'SuperAdmin') {
+        if ($user->hasRole(\App\Models\Role::SUPER_ADMIN)) {
             $sessions = UserSession::with('user')->orderBy('last_active', 'desc')->get()->map(function ($session) use ($currentToken) {
                 $tokenId = str_replace('token_', '', $session->device_id);
                 return [
@@ -413,7 +413,7 @@ class AuthController extends Controller
         $currentToken = $user->currentAccessToken();
         $currentTokenId = $currentToken->id;
         
-        if ($user->role?->role_name === 'SuperAdmin') {
+        if ($user->hasRole(\App\Models\Role::SUPER_ADMIN)) {
             // حذف الجلسات من جدول user_sessions لكافة المستخدمين والأجهزة الأخرى برقم التوكن الفريد
             UserSession::where('device_id', '!=', 'token_' . $currentTokenId)->delete();
 
@@ -458,7 +458,7 @@ class AuthController extends Controller
         }
 
         // التحقق من الصلاحيات: إذا لم يكن SuperAdmin، فيجب أن يملك الجلسة بنفسه
-        if ($request->user()->role?->role_name !== 'SuperAdmin' && $token->tokenable_id !== $request->user()->user_id) {
+        if (!$request->user()->hasRole(\App\Models\Role::SUPER_ADMIN) && $token->tokenable_id !== $request->user()->user_id) {
             return response()->json([
                 'success' => false,
                 'message' => 'غير مصرح لك بإنهاء جلسات هذا المستخدم.'

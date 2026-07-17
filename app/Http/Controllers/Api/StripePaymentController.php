@@ -108,7 +108,7 @@ class StripePaymentController extends Controller
 
             // إرسال إشعار للإدارة
             $admins = \App\Models\User::whereHas('role', function($q) {
-                $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
+                $q->whereIn('role_id', [\App\Models\Role::ADMIN, \App\Models\Role::SECRETARY, \App\Models\Role::SUPER_ADMIN]);
             })->get();
 
             foreach ($admins as $admin) {

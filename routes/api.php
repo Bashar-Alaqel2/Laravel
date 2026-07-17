@@ -17,7 +17,7 @@ Route::get('/login', function() {
     return response()->json(['success' => false, 'message' => 'Unauthenticated or Redirected.'], 401);
 })->name('login');
 
-// مسار ربط الشاشات الفيزيائية
+// مسار ربط الشاشات الفيزيائية (مفتوحة لأنها تأتي من تطبيق الشاشة الذي لا يملك token)
 Route::post('/screens/link', [ScreenController::class, 'linkScreen']);
 Route::post('/screens/ping', [ScreenController::class, 'ping']);
 Route::post('/screens/report-empty', [ScreenController::class, 'reportEmpty']);
@@ -25,18 +25,12 @@ Route::post('/screens/playback-log', [ScreenController::class, 'recordPlaybackLo
 Route::get('/screens/check', [ScreenController::class, 'check']);
 Route::post('/screens/generate-id', [ScreenController::class, 'generateId']);
 Route::post('/screens/upload-screenshot', [ScreenController::class, 'uploadScreenshot']);
-Route::post('/screens/{id}/command', [ScreenController::class, 'sendCommand']);
+// ملاحظة: تم حذف /screens/{id}/command المفتوح - يوجد نسخة محمية داخل auth:sanctum
 Route::get('/playlist', [App\Http\Controllers\Api\PlaylistController::class, 'getPlaylist']);
 Route::get('/settings', function() { return response()->json(['success' => true, 'data' => []]); });
 
+// Stripe Webhook (يأتي من سيرفرات Stripe بدون توكن مستخدم)
 Route::post('/payments/stripe/webhook', [App\Http\Controllers\Api\StripePaymentController::class, 'handleWebhook']);
-Route::get('/tickers', function() { return response()->json(['success' => true, 'data' => null]); }); // مسار نبض الشاشة المفتوح للشاشات المربوطة
-Route::get('/ads-test', function() {
-    return response()->json([
-        'success' => true,
-        'data' => \App\Models\Advertisement::with(['advertiser', 'screens.street.region.governorate', 'category'])->where('is_deleted', \Illuminate\Support\Facades\DB::raw('false'))->get()
-    ]);
-});
 
 // مسارات محمية (يجب إرسال التوكن للوصول إليها)
 Route::middleware('auth:sanctum')->group(function () {
@@ -80,8 +74,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // === مسارات أوقات الذروة والتسعير (Peak Hours & Pricing) ===
     Route::apiResource('screen-pricing-slots', App\Http\Controllers\Api\ScreenPricingSlotController::class);
     
-    // === مسارات باقات التكرار (Frequency Packages) ===
-    Route::apiResource('frequency-packages', App\Http\Controllers\Api\FrequencyPackageController::class);
     
     // === مسارات خصومات المدد الإعلانية (Duration Discounts) ===
     Route::apiResource('duration-discounts', App\Http\Controllers\Api\DurationDiscountController::class);
@@ -119,9 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/lookups/categories', [App\Http\Controllers\Api\LookupController::class, 'getCategories']);
     Route::get('/lookups/users-by-role/{roleName}', [App\Http\Controllers\Api\LookupController::class, 'getUsersByRole']); // جلب المستخدمين حسب الدور
     Route::get('/lookups/roles', [App\Http\Controllers\Api\LookupController::class, 'getRoles']); // جلب كل الأدوار
-    Route::post('/lookups/roles', [App\Http\Controllers\Api\LookupController::class, 'storeRole']); // إضافة دور جديد
     Route::put('/lookups/roles/{id}', [App\Http\Controllers\Api\LookupController::class, 'updateRole']); // تعديل دور
-    Route::delete('/lookups/roles/{id}', [App\Http\Controllers\Api\LookupController::class, 'destroyRole']); // حذف دور
     
     // إضافة البيانات من قبل المدير العام (POST)
     Route::post('/lookups/screen-types', [App\Http\Controllers\Api\LookupController::class, 'storeScreenType']);
@@ -157,7 +147,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/financial/archive', [App\Http\Controllers\Api\FinancialController::class, 'archiveRecords']);
     
     Route::apiResource('payment-methods', App\Http\Controllers\Api\PaymentMethodController::class);
-    Route::post('/payments/stripe/create-intent', [App\Http\Controllers\Api\StripePaymentController::class, 'createPaymentIntent']);
     Route::post('/payments/manual', [App\Http\Controllers\Api\ManualPaymentController::class, 'store']);
     
     // === مسارات الدعم والصيانة (Support Tickets) ===

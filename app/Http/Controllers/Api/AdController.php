@@ -160,12 +160,7 @@ class AdController extends Controller
             }
 
             // 1. حساب السعة المطلوبة بالثواني في الساعة الواحدة
-            $interval = 10;
-            if ($request->filled('plays_per_hour')) {
-                $interval = (int) (60 / $request->plays_per_hour);
-            } elseif ($request->filled('interval_minutes')) {
-                $interval = (int) $request->interval_minutes;
-            }
+            $interval = 10; // قيمة افتراضية ثابتة بعد إلغاء باقات التكرار
             $allocatedSeconds = (60 / $interval) * $duration; // مثلاً (60/5) * 15 = 180 ثانية
 
             if ($allocatedSeconds > 3600) {
@@ -177,9 +172,9 @@ class AdController extends Controller
             $reqEndTime   = $request->target_end_time ?? '23:59:59';
 
             foreach ($request->screen_ids as $screenId) {
-                // جلب الإعلانات النشطة التي تتقاطع تواريخها وأوقاتها مع المطلوب لهذه الشاشة
-                $overlappingSchedules = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
-                        // نتجاهل الإعلانات المرفوضة والمحذوفة
+                // حساب أقصى حمل (Peak Load) عبر كل الأيام المتداخلة بعملية واحدة
+                // بدلاً من اللوب يوم بيوم (تحسين أداء جذري)
+                $maxLoad = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
                         $q->where('status', '!=', 'Rejected')->whereNull('deleted_at');
                     })
                     ->whereHas('advertisement.screens', function($q) use ($screenId) {
@@ -189,72 +184,21 @@ class AdController extends Controller
                     ->where('start_date', '<=', $request->end_date)
                     ->where('end_date', '>=', $request->start_date)
                     ->where(function ($query) use ($reqStartTime, $reqEndTime) {
-                        // تداخل الأوقات
                         $query->where(function($q) use ($reqStartTime, $reqEndTime) {
                             $q->where('start_time', '<', $reqEndTime)
                               ->where('end_time', '>', $reqStartTime);
-                        })->orWhereNull('start_time'); // يشمل الإعلانات المفتوحة 24/7
+                        })->orWhereNull('start_time');
                     })
-                    ->get();
+                    ->sum('allocated_seconds');
 
-                // فحص السعة يوماً بيوم باستخدام Sweep-Line
-                $currentDate = \Carbon\Carbon::parse($request->start_date);
-                $endDate = \Carbon\Carbon::parse($request->end_date);
-
-                while ($currentDate->lte($endDate)) {
-                    $dateStr = $currentDate->toDateString();
-                    
-                    // فلترة الإعلانات النشطة في هذا اليوم التحديداً
-                    $dailySchedules = $overlappingSchedules->filter(function($schedule) use ($dateStr) {
-                        return $schedule->start_date <= $dateStr && $schedule->end_date >= $dateStr;
-                    });
-
-                    $events = [];
-                    foreach ($dailySchedules as $schedule) {
-                        $sTime = $schedule->start_time ?? '00:00:00';
-                        $eTime = $schedule->end_time ?? '23:59:59';
-                        
-                        // نقاط التقاطع الفعلية مع نافذة العرض المطلوبة
-                        $overlapStart = max($sTime, $reqStartTime);
-                        $overlapEnd = min($eTime, $reqEndTime);
-                        
-                        if ($overlapStart < $overlapEnd) {
-                            $events[] = ['time' => $overlapStart, 'type' => 'start', 'value' => $schedule->allocated_seconds];
-                            $events[] = ['time' => $overlapEnd, 'type' => 'end', 'value' => $schedule->allocated_seconds];
-                        }
-                    }
-
-                    // ترتيب الأحداث زمنياً (النهاية قبل البداية إذا تساوت الأوقات لتجنب ذروة وهمية)
-                    usort($events, function($a, $b) {
-                        if ($a['time'] == $b['time']) {
-                            return $a['type'] == 'end' ? -1 : 1; 
-                        }
-                        return $a['time'] <=> $b['time'];
-                    });
-
-                    $currentLoad = 0;
-                    $maxLoad = 0;
-                    
-                    foreach ($events as $event) {
-                        if ($event['type'] == 'start') {
-                            $currentLoad += $event['value'];
-                            if ($currentLoad > $maxLoad) {
-                                $maxLoad = $currentLoad;
-                            }
-                        } else {
-                            $currentLoad -= $event['value'];
-                        }
-                    }
-
-                    if (($maxLoad + $allocatedSeconds) > 3600) {
-                        $available = 3600 - $maxLoad;
-                        return response()->json([
-                            'success' => false, 
-                            'message' => "نعتذر، الشاشة المحددة ممتلئة ولا تتسع لإعلانك في يوم {$dateStr}. السعة المتبقية في أوقات الذروة: {$available} ثانية في الساعة."
-                        ], 400);
-                    }
-
-                    $currentDate->addDay();
+                if (($maxLoad + $allocatedSeconds) > 3600) {
+                    $available = 3600 - $maxLoad;
+                    $screen = \App\Models\Screen::find($screenId);
+                    $screenName = $screen ? $screen->screen_name : $screenId;
+                    return response()->json([
+                        'success' => false, 
+                        'message' => "نعتذر، الشاشة ({$screenName}) ممتلئة ولا تتسع لإعلانك. السعة المتبقية: {$available} ثانية في الساعة."
+                    ], 400);
                 }
             }
 
@@ -287,7 +231,7 @@ class AdController extends Controller
                 'file_size'       => round($sizeInMB, 2),
                 'start_date'      => $request->start_date,
                 'end_date'        => $request->end_date,
-                'daily_frequency' => $request->interval_minutes, // استخدمنا الحقل كمتغير مؤقت
+
                 'total_cost'      => $request->total_cost, // يمكن لاحقاً حسابها من السيرفر مباشرة عبر screen_pricing_slots
                 'package_name'    => $request->package_name,
                 'status'          => $initialStatus,
@@ -308,65 +252,24 @@ class AdController extends Controller
                 'is_active' => true,
             ]);
 
-            // تسجيل إيصال الدفع أو تنفيذ القيود المحاسبية الفورية
+            // تسجيل قيد مالي واحد (معلق) - سيتم توزيع الأرباح عند اعتماد الدفع من الإدارة
+            $receiptData = null;
             if ($request->hasFile('receipt')) {
                 $file = $request->file('receipt');
                 $base64 = base64_encode(file_get_contents($file->getRealPath()));
                 $mime = $file->getClientMimeType();
                 $receiptData = "data:{$mime};base64,{$base64}";
-
-                \App\Models\FinancialLedger::create([
-                    'advertisement_id' => $ad->ad_id,
-                    'user_id'          => $advertiserId,
-                    'transaction_type' => 'payment_pending',
-                    'amount'           => $ad->total_cost,
-                    'status'           => 'pending',
-                    'notes'            => "إيصال دفع مرفق عند إنشاء الإعلان: {$ad->title}",
-                    'receipt_path'     => $receiptData,
-                ]);
-            } else {
-                // 1. خصم التكلفة من المعلن
-                \App\Models\FinancialLedger::create([
-                    'advertisement_id' => $ad->ad_id,
-                    'user_id' => $advertiserId,
-                    'transaction_type' => 'ad_payment',
-                    'amount' => $ad->total_cost,
-                    'status' => 'completed',
-                    'notes' => "دفع قيمة الإعلان من الرصيد المتاح: {$ad->title}"
-                ]);
-
-                // 2. حساب عمولة النظام (20%)
-                $systemCommission = $ad->total_cost * 0.20;
-                \App\Models\FinancialLedger::create([
-                    'advertisement_id' => $ad->ad_id,
-                    'user_id' => 1, // النظام/الآدمن الرئيسي
-                    'transaction_type' => 'system_commission',
-                    'amount' => $systemCommission,
-                    'status' => 'completed',
-                    'notes' => "عمولة المنصة من الإعلان: {$ad->title}"
-                ]);
-
-                // 3. تجميد نصيب ملاك الشاشات
-                $ownerRevenue = $ad->total_cost - $systemCommission;
-                $screensCount = count($request->screen_ids);
-                if ($screensCount > 0) {
-                    $amountPerScreen = $ownerRevenue / $screensCount;
-                    foreach ($request->screen_ids as $screenId) {
-                        $screen = \App\Models\Screen::find($screenId);
-                        if ($screen && $screen->owner_id) {
-                            \App\Models\FinancialLedger::create([
-                                'advertisement_id' => $ad->ad_id,
-                                'screen_id' => $screen->screen_id,
-                                'user_id' => $screen->owner_id,
-                                'transaction_type' => 'ad_revenue_pending',
-                                'amount' => $amountPerScreen,
-                                'status' => 'pending',
-                                'notes' => "إيراد معلق للإعلان: {$ad->title}"
-                            ]);
-                        }
-                    }
-                }
             }
+
+            \App\Models\FinancialLedger::create([
+                'advertisement_id' => $ad->ad_id,
+                'user_id'          => $advertiserId,
+                'transaction_type' => 'payment_pending',
+                'amount'           => $ad->total_cost,
+                'status'           => 'pending',
+                'notes'            => "قيد دفع للإعلان: {$ad->title}",
+                'receipt_path'     => $receiptData,
+            ]);
 
             \Illuminate\Support\Facades\DB::commit();
 
@@ -381,7 +284,7 @@ class AdController extends Controller
                 ]);
 
                 $admins = \App\Models\User::whereHas('role', function($q) {
-                    $q->whereIn('role_name', ['Admin', 'Secretary', 'SuperAdmin']);
+                    $q->whereIn('role_id', [\App\Models\Role::ADMIN, \App\Models\Role::SECRETARY, \App\Models\Role::SUPER_ADMIN]);
                 })->get();
 
                 foreach ($admins as $admin) {
@@ -582,16 +485,8 @@ class AdController extends Controller
         if (strlen($reqStartTime) === 5) $reqStartTime .= ':00';
         if (strlen($reqEndTime)   === 5) $reqEndTime   .= ':00';
 
-        // ── 3. مضاعف باقة التكرار
-        $frequency = 10;
-        if ($request->filled('plays_per_hour')) {
-            $frequency = (int) (60 / $request->plays_per_hour);
-        } elseif ($request->filled('interval_minutes')) {
-            $frequency = (int) $request->interval_minutes;
-        }
-        
-        $package           = \App\Models\FrequencyPackage::where('display_interval', $frequency)->first();
-        $packageMultiplier = $package ? (double) $package->price_multiplier : 1.0;
+        // ── 3. مضاعف باقة التكرار (تم إلغاؤه)
+        $packageMultiplier = 1.0;
 
         // ── 4. عدد المعلنين المشتركين في نفس الوقت (لكل شاشة)
         $sharedCountMap = [];
@@ -691,7 +586,6 @@ class AdController extends Controller
             'success' => true,
             'data' => [
                 'days'               => $days,
-                'frequency_minutes'  => $frequency,
                 'package_multiplier' => $packageMultiplier,
                 'total_cost'         => round($totalCost, 2),
                 'screens'            => $screenDetails,

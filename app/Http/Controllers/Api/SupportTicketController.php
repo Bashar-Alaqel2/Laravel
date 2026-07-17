@@ -15,7 +15,7 @@ class SupportTicketController extends Controller
         // Smart Scoping:
         // ScreenOwner (role_id = 8) only gets their own tickets.
         // Admin, Maintenance, or others get all tickets.
-        if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+        if ($user->role_id === 8 || ($user->hasRole(\App\Models\Role::SCREEN_OWNER))) {
             $tickets = SupportTicket::with('screen')->where('user_id', $user->user_id)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -58,7 +58,7 @@ class SupportTicketController extends Controller
     {
         $user = $request->user();
         
-        if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+        if ($user->role_id === 8 || ($user->hasRole(\App\Models\Role::SCREEN_OWNER))) {
             $ticket = SupportTicket::with('screen')->where('id', $id)
                 ->where('user_id', $user->user_id)
                 ->firstOrFail();
@@ -75,7 +75,7 @@ class SupportTicketController extends Controller
         
         $ticket = SupportTicket::findOrFail($id);
         
-        if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+        if ($user->role_id === 8 || ($user->hasRole(\App\Models\Role::SCREEN_OWNER))) {
             // Screen Owners should not update the admin_reply or status directly except maybe to close it.
             // But we can let them close it.
             if ($ticket->user_id !== $user->user_id) {

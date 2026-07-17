@@ -30,8 +30,8 @@ class AdvertiserController extends Controller
 
         // حساب إجمالي المصروفات (المدفوعات المعتمدة)
         $totalSpent = FinancialLedger::where('user_id', $userId)
-            ->where('transaction_type', 'payment')
-            ->where('status', 'Approved')
+            ->where('transaction_type', 'payment_in')
+            ->where('status', 'completed')
             ->sum('amount');
 
         // جلب آخر 5 إعلانات حديثة
@@ -61,8 +61,8 @@ class AdvertiserController extends Controller
 
         // إجمالي المدفوعات المعتمدة طوال الوقت
         $totalPayments = FinancialLedger::where('user_id', $userId)
-            ->where('transaction_type', 'payment')
-            ->where('status', 'Approved')
+            ->whereIn('transaction_type', ['payment_in', 'payment_pending'])
+            ->where('status', 'completed')
             ->sum('amount');
 
         // الرصيد المعتمد (إن وجد، مثلاً إذا كان هناك نظام محفظة، هنا سنعتبره 0 أو نجلب الرصيد من جدول user_balances لو موجود)
@@ -72,7 +72,7 @@ class AdvertiserController extends Controller
         // سجل العمليات
         $transactions = FinancialLedger::with('advertisement:ad_id,title')
             ->where('user_id', $userId)
-            ->whereIn('transaction_type', ['payment', 'payment_in'])
+            ->whereIn('transaction_type', ['payment_in', 'payment_pending'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($tx) {
@@ -83,7 +83,7 @@ class AdvertiserController extends Controller
                     'method' => $tx->payment_method ?? 'Unknown',
                     'amount' => $tx->amount,
                     'ref' => $tx->reference_number ?? 'AD-' . $tx->advertisement_id,
-                    'status' => $tx->status == 'Approved' ? 'معتمدة' : ($tx->status == 'Pending' ? 'قيد المراجعة' : 'مرفوضة')
+                    'status' => $tx->status === 'completed' ? 'معتمدة' : ($tx->status === 'pending' ? 'قيد المراجعة' : 'مرفوضة')
                 ];
             });
 

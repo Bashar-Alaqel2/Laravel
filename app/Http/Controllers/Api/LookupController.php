@@ -266,10 +266,7 @@ class LookupController extends Controller
     // إدارة الأدوار (Roles Management)
     public function storeRole(Request $request)
     {
-        $request->validate(['role_name' => 'required|string|max:50|unique:roles,role_name']);
-        $role = \App\Models\Role::create(['role_name' => $request->role_name]);
-        Cache::forget('lookup_roles');
-        return response()->json(['message' => 'تم إضافة الدور بنجاح', 'data' => $role], 201);
+        return response()->json(['message' => 'إضافة أدوار جديدة غير مسموحة في النظام.'], 403);
     }
 
     public function storeCategory(Request $request)
@@ -310,24 +307,7 @@ class LookupController extends Controller
 
     public function destroyRole($id)
     {
-        $role = \App\Models\Role::findOrFail($id);
-        
-        // منع حذف الأدوار الأساسية لسلامة النظام
-        $protectedRoles = ['SuperAdmin', 'Advertiser', 'ScreenOwner', 'Maintenance', 'Secretary', 'Admin'];
-        if (in_array($role->role_name, $protectedRoles)) {
-            return response()->json(['message' => 'لا يمكن حذف الأدوار الأساسية للنظام!'], 403);
-        }
-
-        // التحقق من عدم وجود مستخدمين مرتبطين بهذا الدور
-        if ($role->users()->exists()) {
-            return response()->json(['message' => 'لا يمكن حذف هذا الدور لأن هناك مستخدمين مرتبطين به. يرجى تغيير أدوارهم أولاً.'], 400);
-        }
-
-        $roleName = strtolower($role->role_name);
-        $role->delete();
-        Cache::forget('lookup_roles');
-        Cache::forget('lookup_users_role_' . $roleName);
-        return response()->json(['message' => 'تم حذف الدور بنجاح'], 200);
+        return response()->json(['message' => 'حذف الأدوار غير مسموح في النظام.'], 403);
     }
 
     public function updateCategory(Request $request, $id)

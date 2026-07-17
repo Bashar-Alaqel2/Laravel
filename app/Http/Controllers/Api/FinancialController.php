@@ -135,9 +135,9 @@ class FinancialController extends Controller
             $baseQuery = FinancialLedger::query();
 
             if ($user) {
-                if ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner')) {
+                if ($user->role_id === 8 || ($user->hasRole(\App\Models\Role::SCREEN_OWNER))) {
                     $baseQuery->where('user_id', $user->user_id);
-                } elseif ($user->role && $user->role->role_name === 'Secretary') {
+                } elseif ($user->hasRole(\App\Models\Role::SECRETARY)) {
                     $baseQuery->where('transaction_type', 'payment_pending');
                 } else {
                     if ($request->has('user_id')) {
@@ -290,7 +290,7 @@ class FinancialController extends Controller
 
         // إشعار الإدارة بوجود طلب سحب جديد
         $adminUsers = \App\Models\User::whereHas('role', function($q) {
-            $q->whereIn('role_name', ['SuperAdmin', 'Admin']);
+            $q->whereIn('role_id', [\App\Models\Role::SUPER_ADMIN, \App\Models\Role::ADMIN]);
         })->get();
         
         foreach($adminUsers as $adminUser) {
@@ -303,7 +303,11 @@ class FinancialController extends Controller
         }
 
         // Clear cache so the admin and the owner immediately see the update
-        \Illuminate\Support\Facades\Cache::flush();
+        // مسح الكاش المتعلق بالمالية فقط (بدلاً من مسح كل الكاش)
+        \Illuminate\Support\Facades\Cache::forget('admin_dashboard_overview');
+        \Illuminate\Support\Facades\Cache::forget('secretary_dashboard_overview');
+        \Illuminate\Support\Facades\Cache::forget("owner_earnings_{$user->user_id}");
+        \Illuminate\Support\Facades\Cache::forget("owner_dashboard_{$user->user_id}");
 
         return response()->json(['success' => true, 'message' => 'تم استلام طلب السحب بنجاح.']);
     }
@@ -365,7 +369,10 @@ class FinancialController extends Controller
             ]);
 
             DB::commit();
-            \Illuminate\Support\Facades\Cache::flush();
+            Cache::forget('admin_dashboard_overview');
+            Cache::forget('secretary_dashboard_overview');
+            Cache::forget("owner_earnings_{$ledger->user_id}");
+            Cache::forget("owner_dashboard_{$ledger->user_id}");
 
             return response()->json(['success' => true, 'message' => 'تم اعتماد طلب السحب وخصم المبلغ من الخزينة.']);
         } catch (\Exception $e) {
@@ -417,7 +424,10 @@ class FinancialController extends Controller
             ]);
 
             DB::commit();
-            \Illuminate\Support\Facades\Cache::flush();
+            Cache::forget('admin_dashboard_overview');
+            Cache::forget('secretary_dashboard_overview');
+            Cache::forget("owner_earnings_{$ledger->user_id}");
+            Cache::forget("owner_dashboard_{$ledger->user_id}");
 
             return response()->json(['success' => true, 'message' => 'تم إرجاع المبلغ لمحفظة المالك مع إشعار بالرفض.']);
         } catch (\Exception $e) {
@@ -539,8 +549,8 @@ class FinancialController extends Controller
     // ==========================================
     public function archiveRecords(Request $request)
     {
-        $user = auth()->user();
-        if (!$user || $user->role !== 'admin') {
+        $user = $request->user();
+        if (!$user || !$user->can('manage_all')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

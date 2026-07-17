@@ -5,7 +5,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Screen;
 use App\Models\Advertisement;
-use App\Models\AdScreen;
+use App\Models\FinancialLedger;
 use App\Models\PlaybackLog;
 use Illuminate\Support\Facades\DB;
 
@@ -39,8 +39,8 @@ class ReportController extends Controller
                 'screen_id' => $screen->screen_id,
                 'screen_name' => $screen->screen_name,
                 'location' => $screen->street ? $screen->street->street_name . ', ' . ($screen->street->region->region_name ?? '') : 'غير محدد',
-                'status' => $screen->status,
-                'fill_rate' => 0, // Real fill rate logic can be implemented later
+                'status' => $screen->computed_status,
+                'fill_rate' => 0,
                 'impressions' => $screenImpressions,
                 'revenue' => $screenRevenue
             ];
@@ -53,7 +53,7 @@ class ReportController extends Controller
                 'total_revenue' => $totalRevenue,
                 'total_impressions' => $totalImpressions,
                 'total_screens' => count($screens),
-                'online_screens' => $screens->where('status', 'Online')->count(),
+                'online_screens' => $screens->filter(fn($s) => $s->computed_status === 'Online')->count(),
             ]
         ], 200);
     }
@@ -74,8 +74,8 @@ class ReportController extends Controller
 
         $user = $request->user();
 
-        // חماية تقارير الملاك
-        if ($user && ($user->role_id === 8 || ($user->role && $user->role->role_name === 'ScreenOwner'))) {
+        // حماية تقارير الملاك
+        if ($user && ($user->role_id === 8 || ($user->hasRole(\App\Models\Role::SCREEN_OWNER)))) {
             if ((int) $screen->owner_id !== (int) $user->user_id) {
                 return response()->json(['success' => false, 'message' => 'غير مصرح لك بالوصول لتقرير هذه الشاشة'], 403);
             }
@@ -120,7 +120,7 @@ class ReportController extends Controller
                 'category' => $ad->category ? $ad->category->category_name : 'غير محدد',
                 'start_date' => $ad->start_date,
                 'end_date' => $ad->end_date,
-                'frequency' => $ad->daily_frequency,
+
                 'revenue' => $revenue,
                 'plays_count' => $playsCount,
             ];
@@ -177,7 +177,7 @@ class ReportController extends Controller
             'summary' => [
                 'total_ads' => $adsCount,
                 'total_plays' => $totalPlays,
-                'status' => $screen->status,
+                'status' => $screen->computed_status,
                 'last_ping' => $screen->linked_at,
                 'offline_since' => $screen->disconnected_at,
                 'offline_hours' => $offlineHours,

@@ -18,7 +18,7 @@ class Advertisement extends Model {
         'is_deleted',
         'start_date',
         'end_date',
-        'daily_frequency',
+
         'total_cost',
         'package_name',
         'payment_status',

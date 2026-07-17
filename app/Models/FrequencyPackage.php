@@ -1,11 +1,2 @@
 <?php
-
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Model;
-
-class FrequencyPackage extends Model
-{
-    protected $table = 'frequency_packages';
-    protected $fillable = ['name', 'display_interval', 'price_multiplier'];
-}
+// This file has been deprecated and its content removed as part of removing Frequency Packages.

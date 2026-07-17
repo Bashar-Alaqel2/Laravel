@@ -27,7 +27,7 @@ class DashboardController extends Controller
                                                       ->where('status', 'pending')
                                                       ->count() ?? 0;
 
-            $offlineScreensCount = Screen::whereIn('status', ['offline', 'Offline', 'maintenance', 'error'])->count() ?? 0;
+            $offlineScreensCount = Screen::reallyOffline()->count() + Screen::where('status', 'Maintenance')->count();
             
             $totalAds = Advertisement::where('is_deleted', 0)->count() ?? 0;
 
@@ -56,7 +56,7 @@ class DashboardController extends Controller
             $totalRevenue = \App\Models\FinancialLedger::where('transaction_type', 'payment_in')
                                                       ->where('status', 'completed')
                                                       ->sum('amount') ?? 0;
-            $activeScreensCount = Screen::whereIn('status', ['active', 'Online', 'online'])->count() ?? 0;
+            $activeScreensCount = Screen::reallyOnline()->count();
             $totalScreensCount = Screen::count() ?? 0;
             $pendingAdsCount = Advertisement::where('status', 'pending')->count() ?? 0;
             $activeUsersCount = User::count() ?? 0;
@@ -151,19 +151,19 @@ class DashboardController extends Controller
             
             $activeScreensCount = 0;
             foreach ($screens as $screen) {
-                if ($screen->status === 'Online' || $screen->status === 'online' || $screen->status === 'active') {
+                if ($screen->computed_status === 'Online') {
                     $activeScreensCount++;
                 }
             }
             $totalScreensCount = $screens->count();
 
             // 3. حساب إجمالي الحملات الإعلانية على شاشاته
-            $totalCampaigns = \DB::table('ad_screens')
-                ->join('screens', 'ad_screens.screen_id', '=', 'screens.screen_id')
-                ->join('advertisements', 'ad_screens.ad_id', '=', 'advertisements.ad_id')
+            $totalCampaigns = \DB::table('advertisement_screen')
+                ->join('screens', 'advertisement_screen.screen_id', '=', 'screens.screen_id')
+                ->join('advertisements', 'advertisement_screen.ad_id', '=', 'advertisements.ad_id')
                 ->where('screens.owner_id', $userId)
                 ->whereRaw('advertisements.is_deleted = 0')
-                ->distinct('ad_screens.ad_id')
+                ->distinct('advertisement_screen.ad_id')
                 ->count();
 
             // 4. مشاهدات الأسبوع (Playback Logs)
@@ -187,15 +187,21 @@ class DashboardController extends Controller
                 });
 
             // 6. قائمة شاشاتي بصيغة مناسبة للواجهة الأمامية
-            $screensData = $screens->map(function($screen) {
+            // استعلام واحد بدلاً من استعلام لكل شاشة (N+1 fix)
+            $screenIds = $screens->pluck('screen_id')->toArray();
+            $revenueByScreen = \App\Models\FinancialLedger::whereIn('screen_id', $screenIds)
+                ->where('transaction_type', 'payout_pending')
+                ->selectRaw('screen_id, SUM(amount) as total_revenue')
+                ->groupBy('screen_id')
+                ->pluck('total_revenue', 'screen_id')
+                ->toArray();
+
+            $screensData = $screens->map(function($screen) use ($revenueByScreen) {
                 return [
                     'id' => $screen->screen_id,
                     'name' => $screen->screen_name,
-                    'status' => $screen->status,
-                    'revenue' => \App\Models\FinancialLedger::where('user_id', $screen->owner_id)
-                                    ->where('transaction_type', 'payout_pending')
-                                    ->where('notes', 'like', '%' . $screen->screen_name . '%')
-                                    ->sum('amount') ?? 0
+                    'status' => $screen->computed_status,
+                    'revenue' => $revenueByScreen[$screen->screen_id] ?? 0
                 ];
             });
 
