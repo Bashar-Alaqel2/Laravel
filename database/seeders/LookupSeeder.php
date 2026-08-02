@@ -21,12 +21,12 @@ class LookupSeeder extends Seeder
 
         // 2. إضافة الأقسام الأساسية
         $categories = [
-            ['name' => 'إعلانات تجارية'],
-            ['name' => 'إعلانات عامة'],
+            ['category_name' => 'إعلانات تجارية', 'price' => 10, 'max_duration' => 60, 'max_size' => 100],
+            ['category_name' => 'إعلانات عامة', 'price' => 5, 'max_duration' => 30, 'max_size' => 50],
         ];
 
         foreach ($categories as $cat) {
-            DB::table('categories')->updateOrInsert(['name' => $cat['name']], $cat);
+            DB::table('categories')->updateOrInsert(['category_name' => $cat['category_name']], $cat);
         }
 
         // 3. إضافة المحافظات الأساسية (لكي تظهر في واجهة إضافة شاشة)
