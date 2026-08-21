@@ -250,7 +250,7 @@ class AdController extends Controller
                 'end_date'          => $request->end_date,
                 'start_time'        => $request->target_start_time,
                 'end_time'          => $request->target_end_time,
-                'interval_minutes'  => $request->interval_minutes,
+                'interval_minutes'  => $request->interval_minutes ?? 1,
                 'allocated_seconds' => $allocatedSeconds,
                 'is_active' => true,
             ]);
@@ -488,8 +488,16 @@ class AdController extends Controller
         if (strlen($reqStartTime) === 5) $reqStartTime .= ':00';
         if (strlen($reqEndTime)   === 5) $reqEndTime   .= ':00';
 
-        // ── 3. مضاعف باقة التكرار (تم إلغاؤه)
+        // ── 3. مضاعف باقة التكرار
         $packageMultiplier = 1.0;
+        if ($request->filled('interval_minutes')) {
+            $package = \App\Models\AdPackage::where('interval_minutes', $request->interval_minutes)
+                ->where('is_active', true)
+                ->first();
+            if ($package) {
+                $packageMultiplier = (float) $package->price_multiplier;
+            }
+        }
 
         // ── 4. عدد المعلنين المشتركين في نفس الوقت (لكل شاشة)
         $sharedCountMap = [];

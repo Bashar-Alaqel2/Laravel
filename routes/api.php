@@ -71,6 +71,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/ads/{id}/status', [App\Http\Controllers\Api\AdController::class, 'updateStatus']);
     Route::delete('/ads/{id}', [App\Http\Controllers\Api\AdController::class, 'destroy']);
 
+    // === مسارات باقات التكرار (Ad Packages) ===
+    Route::get('/ad-packages/active', [App\Http\Controllers\Api\AdPackageController::class, 'active']);
+    Route::get('/ad-packages', [App\Http\Controllers\Api\AdPackageController::class, 'index']);
+    Route::post('/ad-packages', [App\Http\Controllers\Api\AdPackageController::class, 'store']);
+    Route::put('/ad-packages/{id}', [App\Http\Controllers\Api\AdPackageController::class, 'update']);
+    Route::delete('/ad-packages/{id}', [App\Http\Controllers\Api\AdPackageController::class, 'destroy']);
+
+
     // === مسارات أوقات الذروة والتسعير (Peak Hours & Pricing) ===
     Route::apiResource('screen-pricing-slots', App\Http\Controllers\Api\ScreenPricingSlotController::class);
     
