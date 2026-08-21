@@ -66,12 +66,16 @@ class LookupController extends Controller
         }), 200);
     }
 
-    public function getUsersByRole($roleName)
+    public function getUsersByRole($identifier)
     {
-        $cacheKey = 'lookup_users_role_' . strtolower($roleName);
-        return response()->json(Cache::remember($cacheKey, 3600, function () use ($roleName) {
-            return \App\Models\User::with('role')->whereHas('role', function($query) use ($roleName) {
-                $query->where('role_name', $roleName);
+        $cacheKey = 'lookup_users_role_' . strtolower($identifier);
+        return response()->json(Cache::remember($cacheKey, 3600, function () use ($identifier) {
+            return \App\Models\User::with('role')->whereHas('role', function($query) use ($identifier) {
+                if (is_numeric($identifier)) {
+                    $query->where('role_id', $identifier);
+                } else {
+                    $query->where('role_name', $identifier);
+                }
             })->get(['user_id', 'role_id', 'full_name', 'email'])->toArray();
         }), 200);
     }
