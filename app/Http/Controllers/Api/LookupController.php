@@ -33,7 +33,7 @@ class LookupController extends Controller
     public function getRegions($gov_id)
     {
         return response()->json(Cache::remember("lookup_regions_gov_{$gov_id}", 86400, function () use ($gov_id) {
-            return Region::where('gov_id', $gov_id)->get();
+            return Region::where('gov_id', $gov_id)->get()->toArray();
         }), 200);
     }
 
@@ -48,7 +48,7 @@ class LookupController extends Controller
     {
         // نجلب الشوارع مع المنطقة والمحافظة التابعة لها ليكون الاسم واضحاً
         return response()->json(Cache::remember("lookup_streets_reg_{$region_id}", 86400, function () use ($region_id) {
-            return Street::with('region.governorate')->where('region_id', $region_id)->get();
+            return Street::with('region.governorate')->where('region_id', $region_id)->get()->toArray();
         }), 200);
     }
 
@@ -125,7 +125,7 @@ class LookupController extends Controller
         if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
 
         $request->validate([
-            'name'   => 'required|string|max:100',
+            'name'   => ['required', 'string', 'max:100', \Illuminate\Validation\Rule::unique('regions')->where('gov_id', $request->gov_id)],
             'gov_id' => 'required|exists:governorates,gov_id'
         ]);
         
@@ -141,7 +141,7 @@ class LookupController extends Controller
         if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
 
         $request->validate([
-            'name'      => 'required|string|max:100',
+            'name'      => ['required', 'string', 'max:100', \Illuminate\Validation\Rule::unique('streets')->where('region_id', $request->region_id)],
             'region_id' => 'required|exists:regions,region_id'
         ]);
         
@@ -221,7 +221,7 @@ class LookupController extends Controller
         if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
         $region = Region::findOrFail($id);
         $request->validate([
-            'name'   => 'required|string|max:100',
+            'name'   => ['required', 'string', 'max:100', \Illuminate\Validation\Rule::unique('regions')->where('gov_id', $request->gov_id)->ignore($id, 'region_id')],
             'gov_id' => 'required|exists:governorates,gov_id'
         ]);
         $region->update($request->only(['name', 'gov_id']));
@@ -245,7 +245,7 @@ class LookupController extends Controller
         if (!$request->user()->can('manage_all') && !$request->user()->can('manage_regions')) return response()->json(['error' => 'ممنوع'], 403);
         $street = Street::findOrFail($id);
         $request->validate([
-            'name'      => 'required|string|max:100',
+            'name'      => ['required', 'string', 'max:100', \Illuminate\Validation\Rule::unique('streets')->where('region_id', $request->region_id)->ignore($id, 'street_id')],
             'region_id' => 'required|exists:regions,region_id'
         ]);
         $street->update($request->only(['name', 'region_id']));

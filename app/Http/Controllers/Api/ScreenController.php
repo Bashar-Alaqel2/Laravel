@@ -514,23 +514,30 @@ class ScreenController extends Controller
     // ==========================================
     public function generateId(Request $request)
     {
-        // نولد كود فريد مكون من 6 حروف/أرقام مميزة وسهلة القراءة
-        $characters = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-        $generatedId = '';
-        do {
-            $generatedId = 'SB-';
-            for ($i = 0; $i < 6; $i++) {
-                $generatedId .= $characters[rand(0, strlen($characters) - 1)];
-            }
-        } while (Screen::where('mac_address', $generatedId)->exists());
+        $generatedId = $request->input('device_id');
 
-        // ننشئ سجلاً مؤقتاً في الشاشات بحالة 'pending_activation'
-        $screen = Screen::create([
-            'screen_name' => 'شاشة غير مفعلة',
-            'mac_address' => $generatedId,
-            'pairing_code'=> $generatedId,
-            'status'      => 'pending_activation',
-        ]);
+        if (!$generatedId) {
+            // نولد كود فريد مكون من 6 حروف/أرقام مميزة وسهلة القراءة
+            $characters = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+            do {
+                $generatedId = 'SB-';
+                for ($i = 0; $i < 6; $i++) {
+                    $generatedId .= $characters[rand(0, strlen($characters) - 1)];
+                }
+            } while (Screen::where('mac_address', $generatedId)->exists());
+        }
+
+        // نتحقق إذا كانت الشاشة موجودة مسبقاً
+        $screen = Screen::where('mac_address', $generatedId)->first();
+        if (!$screen) {
+            // ننشئ سجلاً مؤقتاً في الشاشات بحالة 'pending_activation'
+            $screen = Screen::create([
+                'screen_name' => 'شاشة غير مفعلة',
+                'mac_address' => $generatedId,
+                'pairing_code'=> $generatedId,
+                'status'      => 'pending_activation',
+            ]);
+        }
 
         return response()->json([
             'success' => true,

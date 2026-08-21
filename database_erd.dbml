@@ -1,0 +1,353 @@
+// SabaPost - Digital Signage Management System
+// Entity Relationship Diagram - dbdiagram.io
+// Paste at: https://dbdiagram.io/d
+
+// ---- AUTH --------------------------------------------------
+
+Table roles {
+  role_id   bigint     [pk, increment]
+  role_name varchar(50) [not null]
+}
+
+Table users {
+  user_id        bigint      [pk, increment]
+  role_id        bigint      [not null]
+  full_name      varchar(100) [not null]
+  email          varchar(100) [unique, not null]
+  phone          varchar(20)
+  location       varchar(255)
+  password_hash  varchar(255) [not null]
+  account_status varchar(20)  [not null]
+  created_at     timestamp
+  deleted_at     timestamp
+}
+
+Table user_sessions {
+  session_id  bigint      [pk, increment]
+  user_id     bigint      [not null]
+  device_name varchar(100)
+  device_id   varchar(100)
+  ip_address  varchar(45)
+  fcm_token   text
+  last_active timestamp
+  is_revoked  boolean     [default: false]
+  created_at  timestamp
+}
+
+// ---- LOCATION ----------------------------------------------
+
+Table governorates {
+  gov_id bigint      [pk, increment]
+  name   varchar(100) [not null]
+}
+
+Table regions {
+  region_id bigint      [pk, increment]
+  gov_id    bigint      [not null]
+  name      varchar(100) [not null]
+}
+
+Table streets {
+  street_id bigint      [pk, increment]
+  region_id bigint      [not null]
+  name      varchar(100) [not null]
+}
+
+// ---- SCREENS -----------------------------------------------
+
+Table screen_types {
+  type_id           bigint      [pk, increment]
+  type_name         varchar(100) [not null]
+  resolution_width  int
+  resolution_height int
+  orientation       varchar(20)
+}
+
+Table screens {
+  screen_id         bigint      [pk, increment]
+  owner_id          bigint      [not null]
+  type_id           bigint      [not null]
+  street_id         bigint      [not null]
+  linked_by         bigint
+  screen_name       varchar(150) [not null]
+  status            varchar(20)
+  mac_address       varchar(17)  [unique]
+  installation_date date
+}
+
+Table screen_pricing_slots {
+  slot_id          bigint       [pk, increment]
+  screen_id        bigint       [not null]
+  start_time       time         [not null]
+  end_time         time         [not null]
+  price_multiplier decimal(5,2) [default: 1]
+}
+
+Table screen_commands {
+  id            bigint      [pk, increment]
+  target_screen varchar(50) [not null]
+  command       varchar(50) [not null]
+  created_at    timestamp
+
+  Note: 'Logical link to screens via mac_address - no formal FK'
+}
+
+// ---- ADVERTISEMENTS ----------------------------------------
+
+Table categories {
+  category_id    bigint        [pk, increment]
+  category_name  varchar(100)  [not null]
+  price          decimal(10,2) [not null]
+  max_duration   int
+  max_size       int
+  discount_type  varchar(20)
+  discount_value decimal(5,2)
+}
+
+Table advertisements {
+  ad_id            bigint        [pk, increment]
+  advertiser_id    bigint        [not null]
+  category_id      bigint        [not null]
+  approved_by      bigint
+  title            varchar(200)  [not null]
+  file_path        varchar(500)  [not null]
+  duration         int           [not null]
+  file_size        int
+  status           varchar(20)
+  rejection_reason text
+  uploaded_at      timestamp
+}
+
+Table ad_screens {
+  ad_screen_id bigint        [pk, increment]
+  ad_id        bigint        [not null]
+  screen_id    bigint        [not null]
+  price        decimal(10,2) [not null]
+}
+
+Table ad_schedules {
+  schedule_id bigint  [pk, increment]
+  ad_id       bigint  [not null]
+  start_date  date    [not null]
+  end_date    date    [not null]
+  start_time  time
+  end_time    time
+  is_active   boolean [default: true]
+}
+
+Table playback_logs {
+  log_id          bigint    [pk, increment]
+  ad_id           bigint    [not null]
+  screen_id       bigint    [not null]
+  played_at       timestamp [not null]
+  duration_played int
+}
+
+// ---- FINANCE -----------------------------------------------
+
+Table invoices {
+  invoice_id      bigint        [pk, increment]
+  advertiser_id   bigint        [not null]
+  invoice_number  varchar(50)   [unique, not null]
+  total_amount    decimal(12,2) [not null]
+  discount_amount decimal(12,2) [default: 0]
+  final_amount    decimal(12,2) [not null]
+  status          varchar(20)
+  issue_date      date          [not null]
+  due_date        date
+}
+
+Table invoice_items {
+  item_id    bigint        [pk, increment]
+  invoice_id bigint        [not null]
+  ad_id      bigint        [not null]
+  item_price decimal(10,2) [not null]
+  quantity   int           [default: 1]
+  subtotal   decimal(10,2) [not null]
+}
+
+Table transactions {
+  transaction_id   bigint        [pk, increment]
+  invoice_id       bigint        [not null]
+  payment_method   varchar(50)   [not null]
+  amount_paid      decimal(12,2) [not null]
+  payment_status   varchar(20)   [not null]
+  payment_date     timestamp
+  reference_number varchar(100)
+}
+
+Table wallets {
+  wallet_id         bigint        [pk, increment]
+  user_id           bigint        [unique, not null]
+  available_balance decimal(12,2) [default: 0]
+  pending_balance   decimal(12,2) [default: 0]
+  total_earned      decimal(12,2) [default: 0]
+  total_withdrawn   decimal(12,2) [default: 0]
+}
+
+Table wallet_transactions {
+  wallet_tx_id     bigint        [pk, increment]
+  wallet_id        bigint        [not null]
+  transaction_type varchar(30)   [not null]
+  amount           decimal(12,2) [not null]
+  description      text
+  reference_id     varchar(100)
+  created_at       timestamp
+}
+
+Table bank_accounts {
+  account_id     bigint       [pk, increment]
+  user_id        bigint       [not null]
+  bank_name      varchar(100) [not null]
+  account_number varchar(50)  [not null]
+  iban           varchar(34)
+  swift_code     varchar(11)
+  is_default     boolean      [default: false]
+  is_verified    boolean      [default: false]
+}
+
+Table financial_ledgers {
+  ledger_id        bigint        [pk, increment]
+  advertisement_id bigint        [not null]
+  screen_id        bigint        [not null]
+  user_id          bigint        [not null]
+  transaction_type varchar(30)   [not null]
+  amount           decimal(12,2) [not null]
+  status           varchar(20)   [not null]
+  notes            text
+  created_at       timestamp
+}
+
+// ---- SUPPORT & CONFIG --------------------------------------
+
+Table notifications {
+  notification_id bigint       [pk, increment]
+  user_id         bigint       [not null]
+  title           varchar(200) [not null]
+  message         text         [not null]
+  type            varchar(50)
+  is_read         boolean      [default: false]
+  created_at      timestamp
+}
+
+Table support_tickets {
+  id          bigint       [pk, increment]
+  user_id     bigint       [not null]
+  subject     varchar(200) [not null]
+  description text         [not null]
+  priority    varchar(20)
+  status      varchar(20)
+  created_at  timestamp
+  resolved_at timestamp
+}
+
+Table payment_methods {
+  method_id       bigint       [pk, increment]
+  name            varchar(100) [not null]
+  account_details text
+  is_active       boolean      [default: true]
+}
+
+Table duration_discounts {
+  duration_discount_id bigint       [pk, increment]
+  name                 varchar(100) [not null]
+  min_days             int          [not null]
+  max_days             int          [not null]
+  discount_percentage  decimal(5,2) [not null]
+  is_active            boolean      [default: true]
+}
+
+Table system_settings {
+  setting_id    bigint       [pk, increment]
+  setting_key   varchar(100) [unique, not null]
+  setting_value text         [not null]
+  description   text
+}
+
+// ============================================================
+// RELATIONSHIPS
+// ============================================================
+
+Ref: users.role_id > roles.role_id
+Ref: user_sessions.user_id > users.user_id
+
+Ref: regions.gov_id > governorates.gov_id
+Ref: streets.region_id > regions.region_id
+
+Ref: screens.owner_id > users.user_id
+Ref: screens.type_id > screen_types.type_id
+Ref: screens.street_id > streets.street_id
+Ref: screens.linked_by > users.user_id
+Ref: screen_pricing_slots.screen_id > screens.screen_id
+
+Ref: advertisements.advertiser_id > users.user_id
+Ref: advertisements.category_id > categories.category_id
+Ref: advertisements.approved_by > users.user_id
+Ref: ad_screens.ad_id > advertisements.ad_id
+Ref: ad_screens.screen_id > screens.screen_id
+Ref: ad_schedules.ad_id > advertisements.ad_id
+Ref: playback_logs.ad_id > advertisements.ad_id
+Ref: playback_logs.screen_id > screens.screen_id
+
+Ref: invoices.advertiser_id > users.user_id
+Ref: invoice_items.invoice_id > invoices.invoice_id
+Ref: invoice_items.ad_id > advertisements.ad_id
+Ref: transactions.invoice_id > invoices.invoice_id
+Ref: wallets.user_id - users.user_id
+Ref: wallet_transactions.wallet_id > wallets.wallet_id
+Ref: bank_accounts.user_id > users.user_id
+Ref: financial_ledgers.advertisement_id > advertisements.ad_id
+Ref: financial_ledgers.screen_id > screens.screen_id
+Ref: financial_ledgers.user_id > users.user_id
+
+Ref: notifications.user_id > users.user_id
+Ref: support_tickets.user_id > users.user_id
+
+// ============================================================
+// TABLE GROUPS
+// ============================================================
+
+TableGroup Auth {
+  roles
+  users
+  user_sessions
+}
+
+TableGroup Location {
+  governorates
+  regions
+  streets
+}
+
+TableGroup Screens {
+  screen_types
+  screens
+  screen_pricing_slots
+  screen_commands
+}
+
+TableGroup Advertisements {
+  categories
+  advertisements
+  ad_screens
+  ad_schedules
+  playback_logs
+}
+
+TableGroup Finance {
+  invoices
+  invoice_items
+  transactions
+  wallets
+  wallet_transactions
+  bank_accounts
+  financial_ledgers
+}
+
+TableGroup Support_Config {
+  notifications
+  support_tickets
+  payment_methods
+  duration_discounts
+  system_settings
+}
