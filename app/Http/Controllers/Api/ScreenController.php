@@ -39,7 +39,7 @@ class ScreenController extends Controller
             'street_id'   => 'nullable|exists:streets,street_id',
             'owner_id'    => 'nullable|exists:users,user_id',
             'linked_by'   => 'nullable|exists:users,user_id',
-            'photo'       => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // الصورة اختيارية
+            'photo'       => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,avif|max:5120', // الصورة اختيارية
             'latitude'    => 'nullable|numeric',
             'longitude'   => 'nullable|numeric',
         ]);
