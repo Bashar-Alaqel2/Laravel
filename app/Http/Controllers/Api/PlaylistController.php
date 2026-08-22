@@ -88,10 +88,12 @@ class PlaylistController extends Controller
 
         // 💡 IF NO CURRENTLY PLAYABLE ADS, ADD DEFAULT CONTENT
         $hasCurrentlyPlayable = false;
-        foreach ($playlist as $ad) {
-            if ($ad['starts_at'] === null) {
-                $hasCurrentlyPlayable = true;
-                break;
+        if (is_iterable($playlist)) {
+            foreach ($playlist as $ad) {
+                if (is_array($ad) && array_key_exists('starts_at', $ad) && $ad['starts_at'] === null) {
+                    $hasCurrentlyPlayable = true;
+                    break;
+                }
             }
         }
 
