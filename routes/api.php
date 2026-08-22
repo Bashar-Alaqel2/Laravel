@@ -170,5 +170,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/settings', [App\Http\Controllers\Api\SystemSettingController::class, 'index']);
     Route::post('/settings', [App\Http\Controllers\Api\SystemSettingController::class, 'update']);
     Route::get('/settings/backup/download', [App\Http\Controllers\Api\SystemSettingController::class, 'downloadBackup']);
+
+    // === مسارات المحتوى الافتراضي ===
+    Route::apiResource('default-contents', App\Http\Controllers\Api\DefaultContentController::class);
+    Route::post('/default-contents/{id}/activate', [App\Http\Controllers\Api\DefaultContentController::class, 'activate']);
 });
 

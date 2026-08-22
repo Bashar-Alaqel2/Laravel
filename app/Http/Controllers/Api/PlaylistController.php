@@ -86,6 +86,31 @@ class PlaylistController extends Controller
             })->values();
         });
 
+        // 💡 IF PLAYLIST IS EMPTY, SERVE DEFAULT CONTENT
+        if (count($playlist) === 0) {
+            $defaultContent = \App\Models\DefaultContent::where('is_active', true)
+                ->where(function($q) use ($screen) {
+                    $q->whereNull('screen_id')
+                      ->orWhere('screen_id', $screen->screen_id);
+                })
+                ->orderBy('screen_id', 'desc') // Prioritize screen-specific over global
+                ->first();
+
+            if ($defaultContent) {
+                $playlist = collect([[
+                    'id'               => 'default_' . $defaultContent->content_id,
+                    'title'            => $defaultContent->title,
+                    'url'              => $defaultContent->file_path,
+                    'type'             => $defaultContent->file_type,
+                    'duration'         => $defaultContent->duration * 1000,
+                    'interval_minutes' => 1,
+                    'allocated_seconds'=> $defaultContent->duration,
+                    'starts_at'        => null,
+                    'expires_at'       => null,
+                ]]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data'    => $playlist
