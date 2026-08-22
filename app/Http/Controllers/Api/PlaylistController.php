@@ -67,10 +67,8 @@ class PlaylistController extends Controller
                 $startsAt = $schedule ? $schedule->start_time : null;
                 $expiresAt = $schedule ? $schedule->end_time : null;
 
-                // 🚀 إذا وقت البداية مر بالفعل، نعرضه فوراً
-                if ($startsAt && $nowTime >= $startsAt) {
-                    $startsAt = null;
-                }
+                // Let Flutter handle the time comparison completely to enforce expires_at
+
 
                 return [
                     'id'               => $ad->ad_id,
