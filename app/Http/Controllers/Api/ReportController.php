@@ -361,10 +361,10 @@ class ReportController extends Controller
             ->join('screens', 'advertisement_screen.screen_id', '=', 'screens.screen_id')
             ->join('streets', 'screens.street_id', '=', 'streets.street_id')
             ->join('regions', 'streets.region_id', '=', 'regions.region_id')
-            ->join('governorates', 'regions.governorate_id', '=', 'governorates.governorate_id')
+            ->join('governorates', 'regions.gov_id', '=', 'governorates.gov_id')
             ->whereBetween('advertisements.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->select('governorates.governorate_name as name', DB::raw('COUNT(DISTINCT advertisements.ad_id) as value'))
-            ->groupBy('governorates.governorate_id', 'governorates.governorate_name')
+            ->select('governorates.name as name', DB::raw('COUNT(DISTINCT advertisements.ad_id) as value'))
+            ->groupBy('governorates.gov_id', 'governorates.name')
             ->get();
 
         return response()->json([
