@@ -37,5 +37,5 @@ RUN COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-dev
 # Set permissions for Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Run database migrations automatically, then start Apache
-CMD php artisan migrate --force && apache2-foreground
+# Run database migrations automatically, link storage, then start Apache
+CMD php artisan storage:link ; php artisan migrate --force && apache2-foreground
