@@ -124,7 +124,7 @@ class AdController extends Controller
             'advertiser_id'     => 'nullable|exists:users,user_id', // إذا لم يرسل، نستخدم الحالي
             'category_id'       => 'nullable|exists:categories,category_id',
             'duration'          => 'nullable|integer|min:1', 
-            'file'              => 'required|file|mimes:mp4,mov,avi,jpeg,png,jpg|max:51200', 
+            'file'              => 'required|file|mimes:mp4,mov,avi,jpeg,png,jpg|max:102400', 
             'start_date'        => 'required|date|after_or_equal:today',
             'end_date'          => 'required|date|after_or_equal:start_date',
             'target_start_time' => 'nullable|date_format:H:i', // جديد: استهداف وقت محدد
