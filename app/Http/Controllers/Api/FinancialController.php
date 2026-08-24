@@ -60,7 +60,119 @@ class FinancialController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'خطأ في معالجة الدفع: ' . $e->getMessage()], 500);
+            Log::error('Error recording payment: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء تسجيل الدفع.',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ==========================================
+    // 1.1 اعتماد الدفعة (Approve Payment) - للمدير
+    // ==========================================
+    public function approvePayment(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->can('manage_all')) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بذلك.'], 403);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $ledger = FinancialLedger::findOrFail($id);
+
+            if ($ledger->transaction_type !== 'payment_pending') {
+                return response()->json(['success' => false, 'message' => 'هذه العملية ليست قيد الانتظار.'], 400);
+            }
+
+            // 1. تحديث السجل المالي
+            $ledger->update([
+                'transaction_type' => 'payment_in',
+                'status' => 'completed',
+                'notes' => str_replace(' — بانتظار الاعتماد', '', $ledger->notes)
+            ]);
+
+            // 2. تحديث حالة الإعلان وتوزيعه
+            $ad = Advertisement::find($ledger->advertisement_id);
+            if ($ad) {
+                $ad->update([
+                    'payment_status' => 'paid',
+                ]);
+                
+                // 3. الآن نُوزّع الأرباح بعد تأكيد الدفع الفعلي
+                $this->distributeEarnings($ad, $ledger->amount);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم اعتماد الدفع وتوزيع الأرباح بنجاح.',
+                'data' => $ledger
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error approving payment: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء اعتماد الدفع.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ==========================================
+    // 1.2 رفض الدفعة (Reject Payment) - للمدير
+    // ==========================================
+    public function rejectPayment(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user->can('manage_all')) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح لك بذلك.'], 403);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $ledger = FinancialLedger::findOrFail($id);
+
+            if ($ledger->transaction_type !== 'payment_pending') {
+                return response()->json(['success' => false, 'message' => 'هذه العملية ليست قيد الانتظار.'], 400);
+            }
+
+            $ledger->update([
+                'status' => 'rejected',
+                'notes' => $ledger->notes . ' (مرفوض)'
+            ]);
+
+            $ad = Advertisement::find($ledger->advertisement_id);
+            if ($ad) {
+                // العودة للحالة السابقة أو الانتظار
+                $ad->update([
+                    'payment_status' => 'pending',
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم رفض الدفعة بنجاح.',
+                'data' => $ledger
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error rejecting payment: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء رفض الدفع.',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
