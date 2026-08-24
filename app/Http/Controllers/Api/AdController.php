@@ -25,12 +25,15 @@ class AdController extends Controller
         if ($user->can('manage_all') || $user->can('review_ads')) {
             $query = Advertisement::where('is_deleted', 0);
             
+            // استعلام جميع الإحصائيات باستعلام واحد فقط بدلاً من 5 queries منفصلة
+            $statsRaw = (clone $query)->selectRaw('status, count(*) as cnt')->groupBy('status')->pluck('cnt', 'status')->toArray();
             $stats = [
-                'total' => (clone $query)->count(),
-                'active' => (clone $query)->where('status', 'Active')->count(),
-                'pending' => (clone $query)->where('status', 'Pending')->count(),
-                'rejected' => (clone $query)->where('status', 'Rejected')->count(),
-                'paused' => (clone $query)->where('status', 'Paused')->count(),
+                'total'   => array_sum($statsRaw),
+                'active'  => $statsRaw['Active'] ?? 0,
+                'pending' => $statsRaw['Pending'] ?? 0,
+                'rejected'=> $statsRaw['Rejected'] ?? 0,
+                'paused'  => $statsRaw['Paused'] ?? 0,
+                'waiting_payment' => $statsRaw['waiting_payment'] ?? 0,
             ];
 
             if ($request->has('status') && $request->status !== 'all') {
@@ -68,12 +71,15 @@ class AdController extends Controller
             $query = Advertisement::where('advertiser_id', $user->user_id)
                                   ->where('is_deleted', 0);
             
+            // استعلام واحد بدلاً من 5
+            $statsRaw = (clone $query)->selectRaw('status, count(*) as cnt')->groupBy('status')->pluck('cnt', 'status')->toArray();
             $stats = [
-                'total' => (clone $query)->count(),
-                'active' => (clone $query)->where('status', 'Active')->count(),
-                'pending' => (clone $query)->where('status', 'Pending')->count(),
-                'rejected' => (clone $query)->where('status', 'Rejected')->count(),
-                'paused' => (clone $query)->where('status', 'Paused')->count(),
+                'total'   => array_sum($statsRaw),
+                'active'  => $statsRaw['Active'] ?? 0,
+                'pending' => $statsRaw['Pending'] ?? 0,
+                'rejected'=> $statsRaw['Rejected'] ?? 0,
+                'paused'  => $statsRaw['Paused'] ?? 0,
+                'waiting_payment' => $statsRaw['waiting_payment'] ?? 0,
             ];
 
             if ($request->has('status') && $request->status !== 'all') {

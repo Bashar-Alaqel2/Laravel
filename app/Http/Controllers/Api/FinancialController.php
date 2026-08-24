@@ -36,32 +36,25 @@ class FinancialController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. تسجيل الحركة في دفتر الأستاذ
+            // 1. تسجيل الحركة في دفتر الأستاذ كـ payment_pending (تحتاج اعتماداً من المدير)
+            // ملاحظة: لا نُوزِّع الأرباح هنا — التوزيع يحدث فقط عند اعتماد المدير (approvePayment)
+            // هذا يمنع توزيع أرباح على دفعات قد تُرفض لاحقاً
             $ledger = FinancialLedger::create([
                 'advertisement_id' => $ad->ad_id,
                 'user_id'          => $ad->advertiser_id,
-                'transaction_type' => 'payment_in',
+                'transaction_type' => 'payment_pending',
                 'amount'           => $request->amount,
                 'payment_method'   => $request->payment_method,
                 'reference_number' => $request->reference_number,
-                'status'           => 'completed',
-                'notes'            => $request->notes ?? "دفع قيمة الإعلان: {$ad->title}",
+                'status'           => 'pending',
+                'notes'            => $request->notes ?? "دفع قيمة الإعلان — بانتظار الاعتماد: {$ad->title}",
             ]);
-
-            // 2. تحديث حالة الدفع في الإعلان
-            $ad->update([
-                'payment_status' => 'paid',
-                'payment_method' => $request->payment_method,
-            ]);
-
-            // 3. (اختياري) توزيع الأرباح تلقائياً أو تركها لخطوة لاحقة
-            $this->distributeEarnings($ad, $request->amount);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم تسجيل الدفع وتوزيع الأرباح بنجاح.',
+                'message' => 'تم تسجيل الدفع بنجاح وهو بانتظار اعتماد المدير.',
                 'data'    => $ledger
             ], 201);
 
@@ -226,9 +219,12 @@ class FinancialController extends Controller
             $withdrawn = FinancialLedger::where('user_id', $userId)
                 ->where('transaction_type', 'payout_completed')
                 ->sum('amount');
-                
+
+            // فقط الطلبات المعلقة (pending) تُحجز من الرصيد
+            // الطلبات المرفوضة (payout_rejected) لا تُطرح — المبلغ يعود للرصيد تلقائياً
             $requested = FinancialLedger::where('user_id', $userId)
                 ->where('transaction_type', 'payout_requested')
+                ->where('status', 'pending')
                 ->sum('amount');
                 
             $availableBalance = $totalEarnings - $withdrawn - $requested;
@@ -270,14 +266,25 @@ class FinancialController extends Controller
 
         $amount = $request->amount;
         
-        $totalEarnings = FinancialLedger::where('user_id', $user->user_id)->where('transaction_type', 'payout_pending')->sum('amount');
-        $withdrawn = FinancialLedger::where('user_id', $user->user_id)->where('transaction_type', 'payout_completed')->sum('amount');
-        $requested = FinancialLedger::where('user_id', $user->user_id)->where('transaction_type', 'payout_requested')->sum('amount');
+        // حساب الرصيد المتاح بدقة:
+        // الأرباح المستحقة - المسحوبة - المطلوبة حالياً
+        // ملاحظة: payout_rejected تُعيد المبلغ للرصيد المتاح تلقائياً لأنها لا تُطرح
+        $totalEarnings = FinancialLedger::where('user_id', $user->user_id)
+            ->where('transaction_type', 'payout_pending')
+            ->sum('amount');
+        $withdrawn = FinancialLedger::where('user_id', $user->user_id)
+            ->where('transaction_type', 'payout_completed')
+            ->sum('amount');
+        // فقط الطلبات المعلقة (pending) تُحجز من الرصيد — المرفوضة لا تُحجز
+        $requested = FinancialLedger::where('user_id', $user->user_id)
+            ->where('transaction_type', 'payout_requested')
+            ->where('status', 'pending')
+            ->sum('amount');
         
         $availableBalance = $totalEarnings - $withdrawn - $requested;
             
         if ($amount > $availableBalance) {
-            return response()->json(['success' => false, 'message' => 'الرصيد المتاح غير كافٍ.'], 400);
+            return response()->json(['success' => false, 'message' => 'الرصيد المتاح غير كافٍ. رصيدك المتاح: $' . number_format($availableBalance, 2)], 400);
         }
 
         FinancialLedger::create([
