@@ -102,6 +102,14 @@ class FinancialController extends Controller
                     'payment_status' => 'paid',
                 ]);
                 
+                // إرسال إشعار للمعلن
+                \App\Models\Notification::create([
+                    'user_id' => $ad->advertiser_id,
+                    'title' => json_encode(['key' => 'notif_title_payment_confirmed']),
+                    'message' => json_encode(['key' => 'notif_msg_payment_confirmed', 'args' => ['amount' => $ledger->amount, 'title' => $ad->title]]),
+                    'is_read' => false,
+                ]);
+
                 // 3. الآن نُوزّع الأرباح بعد تأكيد الدفع الفعلي
                 $this->distributeEarnings($ad, $ledger->amount);
             }
@@ -153,7 +161,15 @@ class FinancialController extends Controller
             if ($ad) {
                 // العودة للحالة السابقة أو الانتظار
                 $ad->update([
-                    'payment_status' => 'pending',
+                    'payment_status' => 'unpaid',
+                ]);
+                
+                // إرسال إشعار للمعلن
+                \App\Models\Notification::create([
+                    'user_id' => $ad->advertiser_id,
+                    'title' => json_encode(['key' => 'notif_title_payment_rejected']),
+                    'message' => json_encode(['key' => 'notif_msg_payment_rejected', 'args' => ['title' => $ad->title]]),
+                    'is_read' => false,
                 ]);
             }
 
@@ -556,96 +572,7 @@ class FinancialController extends Controller
         }
     }
 
-    // ==========================================
-    // 5. اعتماد دفعة (تغيير الحالة من Pending إلى Completed)
-    // ==========================================
-    public function approvePayment(Request $request, $id)
-    {
-        try {
-            DB::beginTransaction();
 
-            $ledger = FinancialLedger::findOrFail($id);
-            
-            if ($ledger->transaction_type !== 'payment_pending') {
-                return response()->json(['success' => false, 'message' => 'هذه العملية ليست دفعة معلقة.'], 400);
-            }
-
-            // 1. تحديث حالة القيد المالي
-            $ledger->update([
-                'status' => 'completed',
-                'transaction_type' => 'payment_in'
-            ]);
-
-            // 2. تحديث حالة الإعلان
-            if ($ledger->advertisement_id) {
-                $ad = Advertisement::find($ledger->advertisement_id);
-                if ($ad) {
-                    $ad->update(['payment_status' => 'paid']);
-                    
-                    // إرسال إشعار للمعلن
-                    \App\Models\Notification::create([
-                        'user_id' => $ad->advertiser_id,
-                        'title' => json_encode(['key' => 'notif_title_payment_confirmed']),
-                        'message' => json_encode(['key' => 'notif_msg_payment_confirmed', 'args' => ['amount' => $ledger->amount, 'title' => $ad->title]]),
-                        'is_read' => false,
-                    ]);
-
-                    // 3. توزيع الأرباح
-                    $this->distributeEarnings($ad, $ledger->amount);
-                }
-            }
-
-            DB::commit();
-            return response()->json(['success' => true, 'message' => 'تم اعتماد الدفع وتوزيع الأرباح بنجاح.']);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    // ==========================================
-    // 6. رفض دفعة (تغيير الحالة من Pending إلى Rejected)
-    // ==========================================
-    public function rejectPayment(Request $request, $id)
-    {
-        try {
-            DB::beginTransaction();
-
-            $ledger = FinancialLedger::findOrFail($id);
-            
-            if ($ledger->transaction_type !== 'payment_pending') {
-                return response()->json(['success' => false, 'message' => 'هذه العملية ليست دفعة معلقة.'], 400);
-            }
-
-            // 1. تحديث حالة القيد المالي
-            $ledger->update([
-                'status' => 'rejected'
-            ]);
-
-            // 2. تحديث حالة الإعلان
-            if ($ledger->advertisement_id) {
-                $ad = Advertisement::find($ledger->advertisement_id);
-                if ($ad) {
-                    $ad->update(['payment_status' => 'unpaid']);
-                    
-                    // إرسال إشعار للمعلن
-                    \App\Models\Notification::create([
-                        'user_id' => $ad->advertiser_id,
-                        'title' => json_encode(['key' => 'notif_title_payment_rejected']),
-                        'message' => json_encode(['key' => 'notif_msg_payment_rejected', 'args' => ['title' => $ad->title]]),
-                        'is_read' => false,
-                    ]);
-                }
-            }
-
-            DB::commit();
-            return response()->json(['success' => true, 'message' => 'تم رفض الدفعة بنجاح.']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
 
     // ==========================================
     // 7. جلب صورة السند فقط (لتحسين أداء النظام)
