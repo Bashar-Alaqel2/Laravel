@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class FinancialController extends Controller
 {
@@ -50,6 +51,7 @@ class FinancialController extends Controller
                 'notes'            => $request->notes ?? "دفع قيمة الإعلان — بانتظار الاعتماد: {$ad->title}",
             ]);
 
+            event(new \App\Events\LedgerUpdated());
             DB::commit();
 
             return response()->json([
@@ -114,6 +116,7 @@ class FinancialController extends Controller
                 $this->distributeEarnings($ad, $ledger->amount);
             }
 
+            event(new \App\Events\LedgerUpdated());
             DB::commit();
 
             return response()->json([
@@ -173,6 +176,7 @@ class FinancialController extends Controller
                 ]);
             }
 
+            event(new \App\Events\LedgerUpdated());
             DB::commit();
 
             return response()->json([
@@ -442,8 +446,9 @@ class FinancialController extends Controller
         // مسح الكاش المتعلق بالمالية فقط (بدلاً من مسح كل الكاش)
         \Illuminate\Support\Facades\Cache::forget('admin_dashboard_overview');
         \Illuminate\Support\Facades\Cache::forget('secretary_dashboard_overview');
-        \Illuminate\Support\Facades\Cache::forget("owner_earnings_{$user->user_id}");
         \Illuminate\Support\Facades\Cache::forget("owner_dashboard_{$user->user_id}");
+
+        event(new \App\Events\LedgerUpdated());
 
         return response()->json(['success' => true, 'message' => 'تم استلام طلب السحب بنجاح.']);
     }
@@ -504,6 +509,7 @@ class FinancialController extends Controller
                 'is_read' => false,
             ]);
 
+            event(new \App\Events\LedgerUpdated());
             DB::commit();
             Cache::forget('admin_dashboard_overview');
             Cache::forget('secretary_dashboard_overview');
@@ -559,6 +565,7 @@ class FinancialController extends Controller
                 'is_read' => false,
             ]);
 
+            event(new \App\Events\LedgerUpdated());
             DB::commit();
             Cache::forget('admin_dashboard_overview');
             Cache::forget('secretary_dashboard_overview');

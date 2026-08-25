@@ -41,7 +41,7 @@ class AdController extends Controller
             }
 
             if ($request->has('search') && !empty($request->search)) {
-                $query->where('ad_title', 'like', '%' . $request->search . '%');
+                $query->where('title', 'like', '%' . $request->search . '%');
             }
 
             $ads = $query->with(['advertiser', 'screens.street.region.governorate', 'category', 'schedules'])
@@ -87,7 +87,7 @@ class AdController extends Controller
             }
 
             if ($request->has('search') && !empty($request->search)) {
-                $query->where('ad_title', 'like', '%' . $request->search . '%');
+                $query->where('title', 'like', '%' . $request->search . '%');
             }
 
             $ads = $query->with(['screens', 'category', 'schedules', 'advertiser'])

@@ -317,7 +317,7 @@ class ScreenController extends Controller
             if ($offlineDurationMinutes > 0) {
                 // جلب الإعلانات التي تمت مقاطعتها بسبب هذا الانقطاع
                 $interruptedAds = $screen->advertisements()
-                    ->where('status', 'interrupted')
+                    ->where('status', 'Paused')
                     ->where('rejection_reason', 'system_offline_interruption')
                     ->get();
 

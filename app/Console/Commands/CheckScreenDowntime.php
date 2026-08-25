@@ -51,9 +51,9 @@ class CheckScreenDowntime extends Command
                 ->get();
 
             foreach ($activeAds as $ad) {
-                // Change status to interrupted, with a special rejection_reason so we know the system did it.
+                // Change status to Paused, with a special rejection_reason so we know the system did it.
                 $ad->update([
-                    'status' => 'interrupted',
+                    'status' => 'Paused',
                     'rejection_reason' => 'system_offline_interruption'
                 ]);
                 $this->info("Interrupted Ad ID: {$ad->ad_id} due to Screen ID: {$screen->screen_id} going offline.");
