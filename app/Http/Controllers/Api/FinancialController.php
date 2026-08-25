@@ -322,7 +322,7 @@ class FinancialController extends Controller
             $ledger = $txQuery->orderBy('created_at', 'desc')->get()->map(function ($item) {
                 $item->has_receipt = !empty($item->receipt_path) ? 1 : 0;
                 return $item;
-            })->values()->toArray();
+            })->values();
             
             return [
                 'total_payments' => $totalPayments,
