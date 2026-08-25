@@ -258,7 +258,7 @@ class FinancialController extends Controller
         $cacheKey = "financial_ledger_{$userId}_{$role}_{$type}_{$startDate}_{$endDate}_{$targetUserId}";
 
         try {
-        $data = Cache::remember($cacheKey, 60, function () use ($user, $request, $startDate, $endDate) {
+            $data = (function () use ($user, $request, $startDate, $endDate) {
             $baseQuery = FinancialLedger::query();
 
             if ($user) {
@@ -331,7 +331,7 @@ class FinancialController extends Controller
                 'owners_paid' => $ownersPaid,
                 'transactions'   => $ledger
             ];
-        });
+        })();
         
         return response()->json([
             'success' => true, 
