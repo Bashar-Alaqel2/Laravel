@@ -693,9 +693,10 @@ class ScreenController extends Controller
             return response()->json(['success' => false, 'message' => 'الشاشة غير موجودة'], 404);
         }
 
-        // مسار التخزين
-        $path = $request->file('image')->store('screenshots', 'public');
-        $url = url('/storage/' . $path);
+        // مسار التخزين (يدعم الرفع على S3 / Supabase ديناميكياً)
+        $disk = env('FILESYSTEM_DISK', 'public');
+        $path = $request->file('image')->store('screenshots', $disk);
+        $url = \Illuminate\Support\Facades\Storage::disk($disk)->url($path);
 
         // تحديث قاعدة البيانات
         $screen->last_screenshot_url = $url;

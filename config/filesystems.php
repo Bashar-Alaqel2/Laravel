@@ -53,8 +53,8 @@ return [
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION'),
             'bucket' => env('AWS_BUCKET'),
-            'url' => 'https://uyvykohckfygsbxbzrpp.supabase.co/storage/v1/object/public/' . env('AWS_BUCKET'),
-            'endpoint' => env('AWS_ENDPOINT'),
+            'url' => 'https://njlwkwhfjcjwouceshif.supabase.co/storage/v1/object/public/' . env('AWS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT', 'https://njlwkwhfjcjwouceshif.supabase.co/storage/v1/s3'),
             'use_path_style_endpoint' => true, // إجباري لـ Supabase
             'throw' => true,
             'report' => true,
