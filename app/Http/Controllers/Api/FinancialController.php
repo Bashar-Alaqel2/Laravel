@@ -251,29 +251,30 @@ class FinancialController extends Controller
         $user = $request->user();
         $userId = $user ? $user->user_id : 'guest';
         $role = $user ? $user->role_id : 'guest';
-        $type = $request->has('type') ? $request->type : 'all';
+        $type = $request->input('type', 'all');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         $targetUserId = $request->input('user_id', 'all');
         $cacheKey = "financial_ledger_{$userId}_{$role}_{$type}_{$startDate}_{$endDate}_{$targetUserId}";
 
+        try {
         $data = Cache::remember($cacheKey, 60, function () use ($user, $request, $startDate, $endDate) {
             $baseQuery = FinancialLedger::query();
 
             if ($user) {
-                if ($user->role_id === 8 || ($user->hasRole(\App\Models\Role::SCREEN_OWNER))) {
+                if ($user->hasRole(\App\Models\Role::SCREEN_OWNER)) {
                     $baseQuery->where('user_id', $user->user_id);
                 } elseif ($user->hasRole(\App\Models\Role::SECRETARY)) {
                     $baseQuery->where('transaction_type', 'payment_pending');
                 } else {
-                    if ($request->has('user_id')) {
-                        $baseQuery->where('user_id', $request->user_id);
+                    if ($request->input('user_id')) {
+                        $baseQuery->where('user_id', $request->input('user_id'));
                     }
                 }
             }
 
-            if ($request->has('type') && $request->type !== 'all') {
-                $baseQuery->where('transaction_type', $request->type);
+            if ($request->input('type') && $request->input('type') !== 'all') {
+                $baseQuery->where('transaction_type', $request->input('type'));
             }
 
             // --- Apply Date Filters for BOTH Aggregations and Transactions ---
@@ -315,11 +316,13 @@ class FinancialController extends Controller
                     ->select([
                         'ledger_id', 'advertisement_id', 'screen_id', 'user_id', 
                         'transaction_type', 'amount', 'payment_method', 'reference_number', 
-                        'status', 'notes', 'created_at', 'updated_at'
-                    ])
-                    ->addSelect(\Illuminate\Support\Facades\DB::raw('CASE WHEN receipt_path IS NOT NULL THEN 1 ELSE 0 END as has_receipt'));
+                        'status', 'notes', 'receipt_path', 'created_at', 'updated_at'
+                    ]);
 
-            $ledger = $txQuery->orderBy('created_at', 'desc')->get();
+            $ledger = $txQuery->orderBy('created_at', 'desc')->get()->map(function ($item) {
+                $item->has_receipt = !empty($item->receipt_path) ? 1 : 0;
+                return $item;
+            });
             
             return [
                 'total_payments' => $totalPayments,
@@ -334,6 +337,17 @@ class FinancialController extends Controller
             'success' => true, 
             'data' => $data
         ], 200);
+        
+        } catch (\Exception $e) {
+            // Clear potentially corrupted cache
+            Cache::forget($cacheKey);
+            Log::error('Error fetching ledger: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء جلب السجلات المالية.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server Error'
+            ], 500);
+        }
     }
 
     // ==========================================
