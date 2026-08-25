@@ -338,7 +338,7 @@ class AdController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|in:Active,Paused,Rejected,waiting_payment',
+            'status' => 'required|in:Active,Paused,Rejected,waiting_payment,Expired',
             'reason' => 'required_if:status,Rejected|string|nullable'
         ]);
 

@@ -73,7 +73,7 @@ class PlaylistController extends Controller
                 return [
                     'id'               => $ad->ad_id,
                     'title'            => $ad->title,
-                    'url'              => url($filePath),
+                    'url'              => $filePath,
                     'type'             => $type,
                     'duration'         => $ad->duration * 1000,
                     'interval_minutes' => $schedule ? $schedule->interval_minutes : 1,

@@ -16,3 +16,6 @@ Schedule::command('logs:cleanup --days=30')->dailyAt('03:00');
 
 // مراقبة الشاشات المنقطعة وإيقاف إعلاناتها مؤقتاً
 Schedule::command('screens:check-downtime')->everyFiveMinutes();
+
+// تحديث حالة الإعلانات المنتهية (إلى Expired)
+Schedule::command('ads:update-statuses')->dailyAt('00:05');
