@@ -26,6 +26,21 @@ class ScreenUpdated implements ShouldBroadcastNow
     }
 
     /**
+     * Get the data to broadcast.
+     *
+     * @return array<string, mixed>
+     */
+    public function broadcastWith(): array
+    {
+        return [
+            'id' => $this->screen->screen_id,
+            'status' => $this->screen->status,
+            'screen_name' => $this->screen->screen_name,
+            'mac_address' => $this->screen->mac_address,
+        ];
+    }
+
+    /**
      * Get the channels the event should broadcast on.
      *
      * @return array<int, \Illuminate\Broadcasting\Channel>

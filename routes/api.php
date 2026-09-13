@@ -25,6 +25,15 @@ Route::post('/screens/playback-log', [ScreenController::class, 'recordPlaybackLo
 Route::get('/screens/check', [ScreenController::class, 'check']);
 Route::post('/screens/generate-id', [ScreenController::class, 'generateId']);
 Route::post('/screens/upload-screenshot', [ScreenController::class, 'uploadScreenshot']);
+// مسار توقيت السيرفر لتطبيق Flutter لضبط التزامن الدقيق
+Route::get('/system/time', function() {
+    return response()->json([
+        'success' => true, 
+        'timestamp' => now()->timestamp,
+        'datetime' => now()->toDateTimeString(),
+        'timezone' => config('app.timezone')
+    ], 200);
+});
 // ملاحظة: تم حذف /screens/{id}/command المفتوح - يوجد نسخة محمية داخل auth:sanctum
 Route::get('/playlist', [App\Http\Controllers\Api\PlaylistController::class, 'getPlaylist']);
 Route::get('/settings', function() { return response()->json(['success' => true, 'data' => []]); });

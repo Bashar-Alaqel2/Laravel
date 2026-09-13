@@ -247,9 +247,20 @@ class ScreenController extends Controller
             }
         }
 
-        $screen->delete(); 
-
-        event(new \App\Events\ScreenUpdated($screen));
+        try {
+            $screen->delete(); 
+            event(new \App\Events\ScreenUpdated($screen));
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'فشلت عملية الحذف. قد تكون الشاشة مرتبطة بإعلانات مالية أو نشطة.'
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'فشلت عملية الحذف لسبب غير معروف.'
+            ], 500);
+        }
 
         return response()->json(['message' => 'تم حذف الشاشة بنجاح'], 200);
     }
@@ -579,7 +590,7 @@ class ScreenController extends Controller
 
             // حساب الثواني المحجوزة في هذه الساعة المحددة
             $usedSeconds = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
-                    $q->where('status', '!=', 'Rejected')->whereNull('deleted_at');
+                    $q->where('status', '!=', 'Rejected')->where('is_deleted', 0);
                 })
                 ->whereHas('advertisement.screens', function($q) use ($id) {
                     $q->where('screens.screen_id', $id);

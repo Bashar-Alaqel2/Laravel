@@ -184,7 +184,7 @@ class AdController extends Controller
                 // حساب أقصى حمل (Peak Load) عبر كل الأيام المتداخلة بعملية واحدة
                 // بدلاً من اللوب يوم بيوم (تحسين أداء جذري)
                 $maxLoad = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
-                        $q->where('status', '!=', 'Rejected')->whereNull('deleted_at');
+                        $q->where('status', '!=', 'Rejected')->where('is_deleted', 0);
                     })
                     ->whereHas('advertisement.screens', function($q) use ($screenId) {
                         $q->where('screens.screen_id', $screenId);
@@ -435,7 +435,6 @@ class AdController extends Controller
 
         // الحذف المنطقي (Soft Delete)
         $ad->is_deleted = 1;
-        $ad->deleted_at = now();
         $ad->save();
 
         // إشعار الشاشات بضرورة تحديث قائمة التشغيل فوراً
@@ -509,7 +508,7 @@ class AdController extends Controller
         $sharedCountMap = [];
         foreach ($request->screen_ids as $screenId) {
             $sharedCount = \App\Models\AdSchedule::whereHas('advertisement', function ($q) {
-                    $q->whereNotIn('status', ['Rejected'])->whereNull('deleted_at');
+                    $q->whereNotIn('status', ['Rejected'])->where('is_deleted', 0);
                 })
                 ->whereHas('advertisement.screens', function ($q) use ($screenId) {
                     $q->where('screens.screen_id', $screenId);
